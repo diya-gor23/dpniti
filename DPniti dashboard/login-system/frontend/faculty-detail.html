@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Details - 2027 Batch</title>
+    <link rel="stylesheet" href="dpniti-widget.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --moss: #2C3424;
+            --cypress: #4C5B3E;
+            --olive: #768064;
+            --cedar: #9B9581;
+            --aloe: #DADED8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #DADED8 0%, #9B9581 100%);
+            min-height: 100vh;
+            padding: 2rem 0.5rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .back-btn {
+            display: inline-block;
+            color: var(--aloe);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            padding: 0.6rem 1.2rem;
+            background: var(--moss);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .back-btn:hover {
+            background: var(--cypress);
+            transform: translateX(-5px);
+        }
+
+        .detail-container {
+            background: transparent;
+            border-radius: 0;
+            overflow: visible;
+            box-shadow: none;
+        }
+
+        .detail-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            border: none;
+            background: transparent;
+            max-width: 1100px;
+        }
+
+        .faculty-header {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 2.5rem;
+            align-items: flex-start;
+        }
+
+        .faculty-photo {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .photo-container {
+            width: 280px;
+            height: 280px;
+            background: var(--cedar);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            color: var(--aloe);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            flex-shrink: 0;
+        }
+
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+        }
+
+        .faculty-header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            flex: 1;
+        }
+
+        .faculty-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--moss);
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 1rem;
+            align-items: start;
+        }
+
+        .info-label {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--moss);
+            text-transform: none;
+        }
+
+        .info-value {
+            font-size: 0.95rem;
+            color: var(--moss);
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .info-value a {
+            color: var(--moss);
+            text-decoration: none;
+        }
+
+        .info-value a:hover {
+            text-decoration: underline;
+        }
+
+        .additional-details {
+            border-top: 1px solid var(--cedar);
+            padding-top: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .additional-details h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--moss);
+            margin-bottom: 0.8rem;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+
+        .detail-item .info-label {
+            font-size: 0.8rem;
+        }
+
+        .detail-item .info-value {
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 992px) {
+            .faculty-header {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .photo-container {
+                font-size: 3rem;
+                width: 220px;
+                height: 220px;
+                margin: 0 auto;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .detail-content {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .faculty-header {
+                grid-template-columns: 1fr;
+            }
+
+            .faculty-name {
+                font-size: 1.4rem;
+            }
+
+            .info-row {
+                grid-template-columns: 90px 1fr;
+                gap: 0.8rem;
+            }
+
+            .info-label {
+                font-size: 0.8rem;
+            }
+
+            .info-value {
+                font-size: 0.9rem;
+            }
+
+            .photo-container {
+                font-size: 2.5rem;
+                width: 180px;
+                height: 180px;
+                margin: 0 auto;
+            }
+
+            .details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+
+            .detail-content {
+                padding: 1rem;
+                gap: 1rem;
+            }
+
+            .faculty-header {
+                grid-template-columns: 1fr;
+            }
+
+            .faculty-name {
+                font-size: 1.3rem;
+            }
+
+            .info-row {
+                grid-template-columns: 80px 1fr;
+                gap: 0.8rem;
+            }
+
+            .info-label {
+                font-size: 0.8rem;
+            }
+
+            .info-value {
+                font-size: 0.9rem;
+            }
+
+            .photo-container {
+                font-size: 3rem;
+                width: 160px;
+                height: 160px;
+                margin: 0 auto;
+            }
+
+            .details-grid {
+                gap: 1rem;
+            }
+        }
+
+        .header-section {
+            text-align: center;
+            color: var(--aloe);
+            margin-bottom: 1rem;
+        }
+
+        .header-section h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="detail-container" id="detailContainer"></div>
+
+        <a href="faculty.html" class="back-btn">← Back</a>
+    </div>
+
+    <script src="faculty-data.js"></script>
+    <script>
+        // Get faculty ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const facultyId = parseInt(urlParams.get('id')) || 1;
+
+        // Find the faculty by ID
+        const faculty = facultyData.find(f => f.id === facultyId);
+
+        if (faculty) {
+            // Generate initials
+            const initials = faculty.name.split(' ').map(n => n[0]).join('');
+
+            // Color palette for initials
+            const colors = ['#9B9581', '#768064', '#DADED8', '#4C5B3E'];
+            const bgColor = colors[(facultyId - 1) % colors.length];
+            const photoMarkup = faculty.photo
+                ? `<img src="${faculty.photo}" alt="${faculty.name}">`
+                : `<strong>${initials}</strong>`;
+
+            // Build the detail HTML
+            const detailContainer = document.getElementById('detailContainer');
+            detailContainer.innerHTML = `
+                <div class="detail-content">
+                    <div class="faculty-header">
+                        <div class="faculty-photo">
+                            <div class="photo-container" style="background: ${bgColor};">
+                                ${photoMarkup}
+                            </div>
+                        </div>
+
+                        <div class="faculty-header-info">
+                            <h2 class="faculty-name">${faculty.name}</h2>
+
+                            <div class="info-row">
+                                <div class="info-label">Designation</div>
+                                <div class="info-value">${faculty.designation || 'N/A'}</div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Department</div>
+                                <div class="info-value">${faculty.department || 'N/A'}</div>
+                            </div>
+
+                            <div class="info-row">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">
+                                    <a href="mailto:${faculty.email}">${faculty.email}</a>
+                                </div>
+                            </div>
+
+                            ${faculty.phone ? `
+                            <div class="info-row">
+                                <div class="info-label">Phone</div>
+                                <div class="info-value">
+                                    <a href="tel:${faculty.phone.replace(/\s/g, '')}">${faculty.phone}</a>
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            ${faculty.cabin && faculty.cabin !== 'Not Mentioned' ? `
+                            <div class="info-row">
+                                <div class="info-label">Cabin No.</div>
+                                <div class="info-value">${faculty.cabin}</div>
+                            </div>
+                            ` : ''}
+
+                            ${faculty.timetable ? `
+                            <div class="info-row">
+                                <div class="info-label">Timetable</div>
+                                <div class="info-value">
+                                    <a href="${faculty.timetable}" target="_blank" style="color: #2C3424; text-decoration: none; font-weight: 500;">
+                                        View Timetable
+                                    </a>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    ${faculty.qualification || faculty.phdSubject || faculty.college || faculty.researchInterest ? `
+                    <div class="additional-details">
+                        <h3>Additional Information</h3>
+                        <div class="details-grid">
+                            ${faculty.qualification ? `
+                            <div class="detail-item">
+                                <div class="info-label">Qualification</div>
+                                <div class="info-value">${faculty.qualification}</div>
+                            </div>
+                            ` : ''}
+
+                            ${faculty.phdSubject ? `
+                            <div class="detail-item">
+                                <div class="info-label">PhD Subject</div>
+                                <div class="info-value">${faculty.phdSubject}</div>
+                            </div>
+                            ` : ''}
+
+                            ${faculty.college ? `
+                            <div class="detail-item">
+                                <div class="info-label">College</div>
+                                <div class="info-value">${faculty.college}</div>
+                            </div>
+                            ` : ''}
+
+                            ${faculty.researchInterest ? `
+                            <div class="detail-item">
+                                <div class="info-label">Research Interest</div>
+                                <div class="info-value">${faculty.researchInterest}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        } else {
+            // Faculty not found
+            document.getElementById('detailContainer').innerHTML = `
+                <div style="padding: 3rem; text-align: center; color: #768064;">
+                    <p style="font-size: 1.2rem;">Faculty not found</p>
+                    <a href="faculty.html" style="color: #2C3424; text-decoration: none; margin-top: 1rem; display: inline-block;">
+                        Back
+                    </a>
+                </div>
+            `;
+        }
+    </script>
+    <script src="dpniti-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timetable Viewer</title>
+    <link rel="stylesheet" href="dpniti-widget.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --moss: #2C3424;
+            --cypress: #4C5B3E;
+            --olive: #768064;
+            --cedar: #9B9581;
+            --aloe: #DADED8;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2C3424 0%, #4C5B3E 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--aloe);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(44, 52, 36, 0.2);
+            border: 1px solid var(--cedar);
+        }
+        
+        h1 {
+            color: var(--moss);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .info {
+            text-align: center;
+            color: var(--olive);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        table th {
+            background: var(--cypress);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--cedar);
+            color: var(--moss);
+        }
+        
+        table tr:hover {
+            background-color: #E6E8E2;
+        }
+        
+        .back-btn {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 20px;
+            background: var(--moss);
+            color: var(--aloe);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+        }
+        
+        .back-btn:hover {
+            background: var(--cypress);
+        }
+        
+        .error {
+            color: #e74c3c;
+            padding: 15px;
+            background: #fadbd8;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: var(--olive);
+            font-size: 18px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="dashboard.html" class="back-btn">← Back to Dashboard</a>
+        <h1 id="title">Loading Timetable...</h1>
+        <p class="info" id="info"></p>
+        <div id="content"></div>
+    </div>
+    
+    <script>
+        // Get division number from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const divisionNumber = urlParams.get('div') || '1';
+        
+        document.getElementById('title').textContent = `Division ${divisionNumber} Timetable`;
+        document.getElementById('info').textContent = `Class Schedule for Division ${divisionNumber}`;
+        
+        // Fetch and display XLSX file
+        async function loadTimetable() {
+            try {
+                const fileName = `documents/Div${divisionNumber}.xlsx`;
+                const response = await fetch(fileName);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load file: ${fileName}`);
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                // Create HTML table
+                let html = '<table>';
+                
+                jsonData.forEach((row, rowIndex) => {
+                    if (rowIndex === 0) {
+                        html += '<thead><tr>';
+                        row.forEach(cell => {
+                            html += `<th>${cell || 'Time'}</th>`;
+                        });
+                        html += '</tr></thead>';
+                    } else {
+                        html += '<tbody><tr>';
+                        row.forEach(cell => {
+                            html += `<td>${cell || '-'}</td>`;
+                        });
+                        html += '</tr></tbody>';
+                    }
+                });
+                
+                html += '</table>';
+                document.getElementById('content').innerHTML = html;
+                
+            } catch (error) {
+                document.getElementById('content').innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}<br>
+                        Please ensure the file exists and try again.
+                    </div>
+                `;
+            }
+        }
+        
+        // Load timetable when page loads
+        window.addEventListener('load', loadTimetable);
+    </script>
+    <script src="dpniti-widget.js"></script>
+</body>
+</html>

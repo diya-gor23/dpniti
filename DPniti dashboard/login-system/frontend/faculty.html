@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty - 2027 Batch</title>
+    <link rel="stylesheet" href="dpniti-widget.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --moss: #2C3424;
+            --cypress: #4C5B3E;
+            --olive: #768064;
+            --cedar: #9B9581;
+            --aloe: #DADED8;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #DADED8 0%, #9B9581 100%);
+            min-height: 100vh;
+            padding: 2.5rem 1rem 3rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: var(--moss);
+            margin-bottom: 2.5rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .faculty-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .faculty-card {
+            border-radius: 10px;
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 1.8rem 1.2rem 1.6rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .faculty-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.18);
+        }
+
+        .faculty-image {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .photo-blob {
+            width: 150px;
+            height: 150px;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        .photo-blob img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .photo-initials {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--aloe);
+        }
+
+        .faculty-info {
+            text-align: center;
+        }
+
+        .faculty-name {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--moss);
+        }
+
+        .back-btn {
+            display: block;
+            width: fit-content;
+            color: var(--aloe);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 2rem auto 0;
+            padding: 0.8rem 1.5rem;
+            background: var(--moss);
+            border-radius: 20px;
+        }
+
+        .back-btn:hover {
+            background: var(--cypress);
+            transform: translateX(-5px);
+        }
+
+        @media (max-width: 768px) {
+            .faculty-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .photo-blob {
+                width: 130px;
+                height: 130px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .faculty-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .faculty-info {
+                padding: 0;
+            }
+
+            .faculty-name {
+                font-size: 1rem;
+            }
+
+            .photo-blob {
+                width: 120px;
+                height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Faculty Members</h1>
+        </div>
+
+        <div class="faculty-grid" id="facultyGrid"></div>
+
+        <a href="dashboard.html" class="back-btn">← Back to Dashboard</a>
+    </div>
+
+    <script src="faculty-data.js"></script>
+    <script>
+        // Generate faculty cards from data
+        const facultyGrid = document.getElementById('facultyGrid');
+        facultyData.forEach((faculty, index) => {
+            const card = document.createElement('a');
+            card.href = `faculty-detail.html?id=${faculty.id}`;
+            card.className = 'faculty-card';
+            card.style.textDecoration = 'none';
+            card.style.color = 'inherit';
+            
+            const initials = faculty.name.split(' ').map(n => n[0]).join('');
+            const cardColors = ['#BECFBB'];
+            const blobColors = ['#9B9581', '#8E8A78', '#7F8469', '#6F775D', '#4C5B3E', '#768064'];
+            const cardBg = cardColors[index % cardColors.length];
+            const blobBg = blobColors[index % blobColors.length];
+            const cardMedia = faculty.photo
+                ? `<img src="${faculty.photo}" alt="${faculty.name}">`
+                : `<span class="photo-initials" style="background: ${blobBg};">${initials}</span>`;
+
+            card.innerHTML = `
+                <div class="faculty-image">
+                    <div class="photo-blob" style="background: ${blobBg};">
+                        ${cardMedia}
+                    </div>
+                </div>
+                <div class="faculty-info">
+                    <div class="faculty-name">${faculty.name}</div>
+                </div>
+            `;
+
+            card.style.background = cardBg;
+            
+            facultyGrid.appendChild(card);
+        });
+    </script>
+    <script src="dpniti-widget.js"></script>
+</body>
+</html>

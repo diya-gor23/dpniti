@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - 2027 Batch</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="dpniti-widget.css">
+</head>
+<body>
+    <!-- Sticky Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="pdeu.png" alt="PDEU Logo">
+                <span class="logo-text">PDEU</span>
+            </div>
+            <div class="nav-menu" id="navMenu">
+                <a href="#home" class="nav-link">Home</a>
+                <a href="about-us.html" class="nav-link">About Us</a>
+                <a href="contact-us.html" class="nav-link">Contact Us</a>
+                <a href="profile.html" class="nav-link profile-btn" aria-label="Open profile page">
+                    <svg class="profile-icon" viewBox="0 0 24 24" width="24" height="24" stroke="white" stroke-width="2" fill="none">
+                        <circle cx="12" cy="8" r="5"></circle>
+                        <path d="M 3 20 Q 3 15 12 15 Q 21 15 21 20"></path>
+                    </svg>
+                </a>
+            </div>
+            <div class="hamburger" id="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h1 class="hero-title">Welcome to 2027 Batch</h1>
+        
+            <div class="hero-decoration">
+                <div class="circle circle-1"></div>
+                <div class="circle circle-2"></div>
+                <div class="circle circle-3"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Moving Tabs Section -->
+    <section class="tabs-section">
+        <div class="container">
+
+            <div class="tabs-grid">
+                <!-- Tab 1: Academic Calendar -->
+                <div class="tab-card">
+                    <div class="tab-header">
+                        <h3>Academic Calendar</h3>
+                        
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider clickable-slider" id="slider1" onclick="openCalendarPDF()">
+                            <div class="slide active">
+                                <img src="images/academic/movingacad_cal.jpg" 
+                                     onerror="this.src='https://via.placeholder.com/400x300/6B5E7D/F1EADA?text=Academic+Calendar+Image'" 
+                                     alt="Academic Calendar">
+                                <div class="slide-caption">Academic Calendar</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/academic/movingacad_cal.jpg" 
+                                     onerror="this.src='https://via.placeholder.com/400x300/6B5E7D/F1EADA?text=Academic+Calendar+Image'" 
+                                     alt="Academic Calendar">
+                                <div class="slide-caption">Academic Calendar</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/academic/movingacad_cal.jpg" 
+                                     onerror="this.src='https://via.placeholder.com/400x300/6B5E7D/F1EADA?text=Academic+Calendar+Image'" 
+                                     alt="Academic Calendar">
+                                <div class="slide-caption">Academic Calendar</div>
+                            </div>
+                        </div>
+                        <div class="slider-dots" id="dots1"></div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Holidays -->
+                <div class="tab-card">
+                    <div class="tab-header">
+                        <h3>Holidays Calendar</h3>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider clickable-slider" id="slider2" onclick="openHolidayPDF()">
+                            <div class="slide active" style="cursor: pointer;">
+                                <div id="calendar-container-1" class="calendar-display"></div>
+                                <div class="slide-caption">January 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-2" class="calendar-display"></div>
+                                <div class="slide-caption">February 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-3" class="calendar-display"></div>
+                                <div class="slide-caption">March 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-4" class="calendar-display"></div>
+                                <div class="slide-caption">April 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-5" class="calendar-display"></div>
+                                <div class="slide-caption">May 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-6" class="calendar-display"></div>
+                                <div class="slide-caption">June 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-7" class="calendar-display"></div>
+                                <div class="slide-caption">July 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-8" class="calendar-display"></div>
+                                <div class="slide-caption">August 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-9" class="calendar-display"></div>
+                                <div class="slide-caption">September 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-10" class="calendar-display"></div>
+                                <div class="slide-caption">October 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-11" class="calendar-display"></div>
+                                <div class="slide-caption">November 2026</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <div id="calendar-container-12" class="calendar-display"></div>
+                                <div class="slide-caption">December 2026</div>
+                            </div>
+                        </div>
+                        <div class="slider-dots" id="dots2"></div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Exam Timetable -->
+                <div class="tab-card">
+                    <div class="tab-header">
+                        <h3>Exam Timetable</h3>
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider clickable-slider" id="slider3" onclick="openExamFileFromSlider()">
+                            <div class="slide active" style="cursor: pointer;">
+                                <img src="images/academic/ia.jpeg" alt="IA">
+                                <div class="slide-caption">Internal Assessment (IA)</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <img src="images/academic/mids.jpeg" alt="Mid">
+                                <div class="slide-caption">Mid Semester Exam</div>
+                            </div>
+                            <div class="slide" style="cursor: pointer;">
+                                <img src="images/academic/ends.jpeg" alt="End">
+                                <div class="slide-caption">End Semester Exam</div>
+                            </div>
+                        </div>
+                        <div class="slider-dots" id="dots3"></div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Class Timetable -->
+                <div class="tab-card">
+                    <div class="tab-header">
+                        <h3>Class Timetable</h3>
+                        
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider clickable-slider" id="slider4" onclick="openDivisionTimetable()">
+                            <div class="slide active">
+                                <img src="images/timetable/Div1.jpeg" alt="Div 1">
+                                <div class="slide-caption">Division 1</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/timetable/Div2.jpeg" alt="Div 2">
+                                <div class="slide-caption">Division 2</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/timetable/Div3.jpeg" alt="Div 3">
+                                <div class="slide-caption">Division 3</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/timetable/Div4.jpeg" alt="Div 4">
+                                <div class="slide-caption">Division 4</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/timetable/Div5.jpeg" alt="Div 5">
+                                <div class="slide-caption">Division 5</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/timetable/Div6.jpeg" alt="Div 6">
+                                <div class="slide-caption">Division 6</div>
+                            </div>
+                            <div class="slide">
+                                <img src="images/timetable/Div7.jpeg" alt="Div 7">
+                                <div class="slide-caption">Division 7</div>
+                            </div>
+                        </div>
+                        <div class="slider-dots" id="dots4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Faculty and Students Section -->
+    <section class="action-section">
+        <div class="container">
+            <div class="action-grid">
+                <div class="action-card faculty-card">
+                    <div class="action-icon" style="background: #2F3B22; border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 64 64" fill="white" stroke="white" style="width: 70px; height: 70px;">
+                            <!-- Person head -->
+                            <circle cx="18" cy="20" r="8" fill="white"></circle>
+                            <!-- Person body -->
+                            <path d="M 8 32 Q 8 28 18 28 Q 28 28 28 32 L 28 44 L 8 44 Z" fill="white"></path>
+                            <!-- Arm pointing -->
+                            <path d="M 28 36 L 38 28" stroke="white" stroke-width="4" stroke-linecap="round" fill="none"></path>
+                            <!-- Whiteboard -->
+                            <rect x="32" y="14" width="26" height="20" rx="2" ry="2" fill="none" stroke="white" stroke-width="3"></rect>
+                            <!-- Graduation cap -->
+                            <path d="M 48 40 L 54 36 L 60 40 L 54 44 Z" fill="white"></path>
+                            <rect x="53" y="44" width="2" height="8" fill="white"></rect>
+                            <circle cx="54" cy="53" r="2" fill="white"></circle>
+                        </svg>
+                    </div>
+                    <h3>Faculty</h3>
+                    <p>Meet our experienced faculty members and their profiles</p>
+                    <button class="action-btn" onclick="location.href='faculty.html'">View Faculty</button>
+                </div>
+
+                <div class="action-card students-card">
+                    <div class="action-icon" style="background: #2F3B22; border-radius: 50%; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 64 64" fill="white" style="width: 70px; height: 70px;">
+                            <!-- Graduation cap -->
+                            <path d="M 22 18 L 32 14 L 42 18 L 32 22 Z" fill="white"></path>
+                            <polygon points="42,18 44,18 44,26 42,28" fill="white"></polygon>
+                            <rect x="31" y="22" width="2" height="4" fill="white"></rect>
+                            <circle cx="32" cy="27" r="1.5" fill="white"></circle>
+                            <!-- Head -->
+                            <circle cx="32" cy="34" r="8" fill="white"></circle>
+                            <!-- Body/Shoulders -->
+                            <path d="M 18 48 Q 18 42 32 42 Q 46 42 46 48 L 46 54 L 18 54 Z" fill="white"></path>
+                        </svg>
+                    </div>
+                    <h3>Students</h3>
+                    <p>Connect with fellow students and view class directory</p>
+                    <button class="action-btn" onclick="location.href='students.html'">View Students</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; PDEU - 2027 Batch. All rights reserved.</p>
+                <div class="footer-links">
+                    <a href="about-us.html">About</a>
+                    <a href="contact-us.html">Contact</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="dashboard.js?v=3"></script>
+    <script src="dpniti-widget.js"></script>
+</body>
+</html>

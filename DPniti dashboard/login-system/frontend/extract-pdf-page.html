@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extract PDF Page to Image</title>
+    <link rel="stylesheet" href="dpniti-widget.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --moss: #2C3424;
+            --cypress: #4C5B3E;
+            --olive: #768064;
+            --cedar: #9B9581;
+            --aloe: #DADED8;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #2C3424 0%, #4C5B3E 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: var(--aloe);
+            padding: 3rem;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(44, 52, 36, 0.3);
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid var(--cedar);
+        }
+        
+        h1 {
+            color: var(--moss);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .instructions {
+            background: #E6E8E2;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            border-left: 4px solid var(--moss);
+        }
+        
+        .instructions h3 {
+            color: var(--moss);
+            margin-bottom: 1rem;
+        }
+        
+        .instructions ol {
+            margin-left: 1.5rem;
+        }
+        
+        .instructions li {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+        
+        .upload-area {
+            border: 3px dashed var(--moss);
+            border-radius: 10px;
+            padding: 3rem 2rem;
+            text-align: center;
+            background: #E6E8E2;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 2rem;
+        }
+        
+        .upload-area:hover {
+            background: #DADDD6;
+            border-color: var(--cypress);
+        }
+        
+        .upload-area.dragover {
+            background: #DADDD6;
+            border-color: var(--cypress);
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .page-selector {
+            margin: 2rem 0;
+        }
+        
+        .page-selector label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--moss);
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--cedar);
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .canvas-container {
+            margin: 2rem 0;
+            text-align: center;
+            display: none;
+        }
+        
+        canvas {
+            max-width: 100%;
+            border: 2px solid var(--cedar);
+            border-radius: 10px;
+        }
+        
+        button {
+            background: var(--moss);
+            color: var(--aloe);
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 Extract PDF Page to Image</h1>
+        
+        <div class="instructions">
+            <h3>📝 How to use:</h3>
+            <ol>
+                <li>Upload the <strong>acad_cal.pdf</strong> file</li>
+                <li>Enter page number (default is 2)</li>
+                <li>Click "Extract & Download Image"</li>
+                <li>Save the image as <strong>calendar-page2.jpg</strong></li>
+                <li>Move it to <strong>frontend/images/academic/</strong> folder</li>
+            </ol>
+        </div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <h3>Click to upload PDF or drag and drop</h3>
+            <p style="margin-top: 0.5rem; color: #768064;">Select acad_cal.pdf</p>
+            <input type="file" id="pdfInput" accept=".pdf">
+        </div>
+        
+        <div class="page-selector">
+            <label for="pageNumber">Page Number to Extract:</label>
+            <input type="number" id="pageNumber" value="2" min="1">
+        </div>
+        
+        <div class="canvas-container" id="canvasContainer">
+            <h3>Preview:</h3>
+            <canvas id="pdfCanvas"></canvas>
+        </div>
+        
+        <button id="downloadBtn" disabled>Extract & Download Image</button>
+        
+        <div class="success-message" id="successMsg">
+            ✅ Image extracted successfully! Save it as "calendar-page2.jpg" in the images/academic folder.
+        </div>
+        
+        <div class="error-message" id="errorMsg"></div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const pdfInput = document.getElementById('pdfInput');
+        const pageNumber = document.getElementById('pageNumber');
+        const canvas = document.getElementById('pdfCanvas');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const successMsg = document.getElementById('successMsg');
+        const errorMsg = document.getElementById('errorMsg');
+        
+        let pdfDoc = null;
+        
+        // Upload area click
+        uploadArea.addEventListener('click', () => pdfInput.click());
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        // File input change
+        pdfInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        // Page number change
+        pageNumber.addEventListener('change', () => {
+            if (pdfDoc) {
+                renderPage(parseInt(pageNumber.value));
+            }
+        });
+        
+        // Handle file upload
+        async function handleFile(file) {
+            if (file.type !== 'application/pdf') {
+                showError('Please upload a PDF file');
+                return;
+            }
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                pdfDoc = await pdfjsLib.getDocument(arrayBuffer).promise;
+                
+                pageNumber.max = pdfDoc.numPages;
+                
+                renderPage(parseInt(pageNumber.value));
+                downloadBtn.disabled = false;
+                successMsg.style.display = 'none';
+                errorMsg.style.display = 'none';
+            } catch (error) {
+                showError('Error loading PDF: ' + error.message);
+            }
+        }
+        
+        // Render PDF page
+        async function renderPage(num) {
+            try {
+                const page = await pdfDoc.getPage(num);
+                const viewport = page.getViewport({ scale: 2 });
+                
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                const ctx = canvas.getContext('2d');
+                await page.render({
+                    canvasContext: ctx,
+                    viewport: viewport
+                }).promise;
+                
+                canvasContainer.style.display = 'block';
+            } catch (error) {
+                showError('Error rendering page: ' + error.message);
+            }
+        }
+        
+        // Download image
+        downloadBtn.addEventListener('click', () => {
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'calendar-page2.jpg';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                successMsg.style.display = 'block';
+            }, 'image/jpeg', 0.95);
+        });
+        
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+    <script src="dpniti-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Students List - 2027 Batch</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="dpniti-widget.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --moss: #2C3424;
+            --cypress: #4C5B3E;
+            --olive: #768064;
+            --cedar: #9B9581;
+            --aloe: #DADED8;
+        }
+
+        html, body {
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #DADED8 0%, #9B9581 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 3rem 2rem 2rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 0;
+            max-width: 1400px;
+            width: 100%;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 5rem);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header h1 {
+            color: var(--moss);
+            font-size: 2.2rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .divisions-grid {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 1.6rem;
+            flex-wrap: nowrap;
+            overflow-x: hidden;
+            padding: 0 0 0.5rem;
+            flex: 1;
+        }
+
+        .divisions-grid::before,
+        .divisions-grid::after {
+            content: '';
+            flex: 1;
+        }
+
+        .divisions-grid::-webkit-scrollbar {
+            display: none;
+        }
+
+        .divisions-grid {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .division-btn {
+            background: transparent;
+            color: var(--moss);
+            border: none;
+            padding: 0 1.6rem 0.9rem 0;
+            border-radius: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            min-height: 220px;
+            position: relative;
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .division-btn:hover {
+            transform: translateY(-5px);
+        }
+
+        .division-btn:nth-child(odd) {
+            transform: translateY(-22px);
+        }
+
+        .division-btn:nth-child(even) {
+            transform: translateY(22px);
+        }
+
+        .division-btn:nth-child(odd):hover {
+            transform: translateY(-28px);
+        }
+
+        .division-btn:nth-child(even):hover {
+            transform: translateY(16px);
+        }
+
+        .division-btn::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(44, 52, 36, 0.2);
+        }
+
+        .division-btn:last-child::after {
+            display: none;
+        }
+
+        .div-number {
+            font-size: 5.4rem;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: 1px;
+        }
+
+        .div-label {
+            font-size: 1rem;
+            color: var(--olive);
+        }
+
+        .divisions-grid .division-btn:nth-child(1) .div-number { color: #B9C96A; }
+        .divisions-grid .division-btn:nth-child(2) .div-number { color: #7FAF9A; }
+        .divisions-grid .division-btn:nth-child(3) .div-number { color: #D58876; }
+        .divisions-grid .division-btn:nth-child(4) .div-number { color: #8B6B4F; }
+        .divisions-grid .division-btn:nth-child(5) .div-number { color: #9EAD7E; }
+        .divisions-grid .division-btn:nth-child(6) .div-number { color: #6E8B7D; }
+        .divisions-grid .division-btn:nth-child(7) .div-number { color: #A3947B; }
+
+        .division-btn:active {
+            transform: translateY(-2px);
+        }
+
+        .back-btn {
+            display: block;
+            text-align: center;
+            margin-top: 3rem;
+            color: var(--moss);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+            padding-bottom: 0.5rem;
+        }
+
+        .back-btn:hover {
+            color: var(--olive);
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .divisions-grid {
+                gap: 1.2rem;
+                padding-bottom: 1rem;
+            }
+
+            .division-btn {
+                padding-right: 1rem;
+                min-height: 110px;
+            }
+
+            .division-btn:nth-child(odd),
+            .division-btn:nth-child(even) {
+                transform: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Class Divisions</h1>
+    </div>
+
+    <div class="divisions-grid">
+        <button class="division-btn" onclick="openStudentList(1)">
+            <span class="div-number">01</span>
+            <span class="div-label">Division 1</span>
+        </button>
+        <button class="division-btn" onclick="openStudentList(2)">
+            <span class="div-number">02</span>
+            <span class="div-label">Division 2</span>
+        </button>
+        <button class="division-btn" onclick="openStudentList(3)">
+            <span class="div-number">03</span>
+            <span class="div-label">Division 3</span>
+        </button>
+        <button class="division-btn" onclick="openStudentList(4)">
+            <span class="div-number">04</span>
+            <span class="div-label">Division 4</span>
+        </button>
+        <button class="division-btn" onclick="openStudentList(5)">
+            <span class="div-number">05</span>
+            <span class="div-label">Division 5</span>
+        </button>
+        <button class="division-btn" onclick="openStudentList(6)">
+            <span class="div-number">06</span>
+            <span class="div-label">Division 6</span>
+        </button>
+
+        <button class="division-btn" onclick="openStudentList(7)">
+            <span class="div-number">07</span>
+            <span class="div-label">Division 7</span>
+        </button>
+    </div>
+
+    <a href="dashboard.html" class="back-btn">← Back to Dashboard</a>
+</div>
+
+<script>
+    function openStudentList(division) {
+        const filename = `Div-${division}_Students_List.pdf`;
+        window.open(`../../${filename}`, '_blank');
+    }
+</script>
+<script src="dpniti-widget.js"></script>
+
+</body>
+</html>     

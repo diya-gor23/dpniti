@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - 2027 Batch</title>
+    <link rel="stylesheet" href="dpniti-widget.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2C3424;
+            --secondary: #4C5B3E;
+            --accent: #768064;
+            --surface: #DADED8;
+            --muted: #9B9581;
+            --text: #2C3424;
+            --shadow: 0 20px 50px rgba(44, 52, 36, 0.16);
+        }
+
+        body {
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(118, 128, 100, 0.28), transparent 30%),
+                linear-gradient(135deg, #f5f6f2 0%, var(--surface) 55%, #c8c0aa 100%);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(16px, 4vw, 48px);
+        }
+
+        .profile-shell {
+            width: min(100%, 920px);
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            overflow: visible;
+            backdrop-filter: none;
+        }
+
+        .profile-header {
+            padding: 0 0 28px;
+            color: var(--primary);
+            text-align: center;
+        }
+
+        .profile-header h1 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            margin-bottom: 0;
+        }
+
+        .profile-body {
+            padding: 0;
+            display: grid;
+            gap: 20px;
+            justify-items: center;
+        }
+
+        .profile-card {
+            display: grid;
+            grid-template-columns: 96px 1fr;
+            gap: 20px;
+            align-items: center;
+            width: min(100%, 680px);
+            padding: 0;
+            background: transparent;
+        }
+
+        .avatar {
+            width: 96px;
+            height: 96px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--muted));
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .profile-meta h2 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .profile-meta .email {
+            color: var(--accent);
+            font-size: 1rem;
+            word-break: break-word;
+            text-align: left;
+        }
+
+        .details-grid {
+            display: grid;
+            gap: 14px;
+            width: min(100%, 680px);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(44, 52, 36, 0.12);
+        }
+
+        .detail-label {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: var(--text);
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            width: min(100%, 680px);
+        }
+
+        .action-btn {
+            appearance: none;
+            border: none;
+            border-radius: 14px;
+            padding: 14px 22px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            box-shadow: 0 12px 24px rgba(44, 52, 36, 0.2);
+        }
+
+        .action-btn.secondary {
+            background: white;
+            color: var(--primary);
+            border: 1px solid rgba(44, 52, 36, 0.12);
+        }
+
+        .empty-state {
+            padding: 0;
+            color: var(--accent);
+            text-align: center;
+            width: min(100%, 680px);
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 16px;
+            }
+
+            .profile-card {
+                grid-template-columns: 1fr;
+                justify-items: center;
+                text-align: center;
+            }
+
+            .profile-meta h2,
+            .profile-meta .email {
+                text-align: center;
+            }
+
+            .details-grid,
+            .actions,
+            .empty-state {
+                width: 100%;
+            }
+
+            .detail-row {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .detail-value {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="profile-shell">
+        <section class="profile-header">
+            <h1>Profile</h1>
+        </section>
+
+        <section class="profile-body">
+            <div class="profile-card">
+                <div class="avatar" id="avatarInitial">U</div>
+                <div class="profile-meta">
+                    <h2 id="profileName">User</h2>
+                    <div class="email" id="profileEmail">user@example.com</div>
+                </div>
+            </div>
+
+            <div class="details-grid">
+                <div class="detail-row">
+                    <span class="detail-label">Name</span>
+                    <span class="detail-value" id="detailName">User</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email</span>
+                    <span class="detail-value" id="detailEmail">user@example.com</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value">Logged in</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <a class="action-btn secondary" href="dashboard.html">Back to Home</a>
+                <button class="action-btn primary" type="button" id="logoutBtn">Logout</button>
+            </div>
+
+            <div class="empty-state" id="missingInfo" hidden>
+                No saved profile details were found in this browser session.
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const name = localStorage.getItem('userName') || 'User';
+        const email = localStorage.getItem('userEmail') || 'user@example.com';
+        const isLoggedIn = Boolean(localStorage.getItem('authToken'));
+
+        document.getElementById('profileName').textContent = name;
+        document.getElementById('profileEmail').textContent = email;
+        document.getElementById('detailName').textContent = name;
+        document.getElementById('detailEmail').textContent = email;
+        document.getElementById('avatarInitial').textContent = name.charAt(0).toUpperCase();
+
+        const missingInfo = document.getElementById('missingInfo');
+        if (!isLoggedIn) {
+            missingInfo.hidden = false;
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userEmail');
+            window.location.href = 'index.html';
+        });
+    </script>
+    <script src="dpniti-widget.js"></script>
+</body>
+</html>
