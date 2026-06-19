@@ -1,0 +1,6 @@
+node_modules/
+.env
+backend/.env
+chatbot/.env
+__pycache__/
+*.pyc
