@@ -102,7 +102,7 @@ signupForm.addEventListener('submit', async (e) => {
         submitBtn.textContent = 'Creating Account...';
 
         // Send signup request to backend
-        const response = await fetch('http://localhost:5000/api/auth/signup', {
+        const response = await fetch(CONFIG.API_URL + '/api/auth/signup', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -136,7 +136,7 @@ signupForm.addEventListener('submit', async (e) => {
 
     } catch (error) {
         console.error('Error:', error);
-        signupError.textContent = 'Connection error. Make sure the backend is running on http://localhost:5000';
+        signupError.textContent = 'Connection error. Make sure the backend is running on ' + CONFIG.API_URL;
         
         // Re-enable button
         const submitBtn = signupForm.querySelector('button[type="submit"]');
