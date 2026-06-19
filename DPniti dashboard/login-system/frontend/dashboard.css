@@ -153,7 +153,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(0deg, rgba(44, 52, 36, 0.78), rgba(44, 52, 36, 0.78)), url('../../pdpu.jpeg');
+    background: linear-gradient(0deg, rgba(44, 52, 36, 0.78), rgba(44, 52, 36, 0.78)), url('images/extra/pdpu.jpeg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

@@ -17,14 +17,23 @@ except ImportError:
 
 import requests
 
-from groq import Groq
+from openai import OpenAI
+
+import time
+from dotenv import load_dotenv
+load_dotenv()
+
+# ── Observability ─────────────────────────────────────────────────────────────
+from langfuse_integration import tracker, trace_function
+# ─────────────────────────────────────────────────────────────────────────────
 
 #####  CONFIG
+DEBUG           = False                                # Set to True to see debug info
 OLLAMA_URL      = "http://localhost:11434"
 OLLAMA_MODEL    = "llama3.2:3b"
-GROQ_API_KEY    = "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"
-GROQ_MODEL      = "llama-3.3-70b-versatile"  # best free model on Groq
-USE_GROQ        = True                        # Groq enabled
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")   # Get from: https://openrouter.ai/keys
+OPENROUTER_MODEL   = "openrouter/free"       # Free model — ends with :free
+USE_OPENROUTER  = True                                 # OpenRouter enabled
             
 SQL_DUMP_PATH   = "dpniti.sql"
 TOP_K           = 4
@@ -262,6 +271,7 @@ def _last_bot_message(history: List[Dict[str, str]]) -> str:
     return ""
 
 # Detects if user input is a greeting message.
+@trace_function()
 def is_greeting(user_text: str) -> bool:
     t = user_text.lower().strip()
     greetings = {
@@ -278,6 +288,7 @@ def is_greeting(user_text: str) -> bool:
     return False
 
 # Detects if user query is academic-related using keywords or patterns.
+@trace_function()
 def is_academic_query(user_text: str) -> bool:
     q = user_text.lower()
     if re.search(r"\b\d{2}bcp\d+[a-z]?\b", q):
@@ -299,6 +310,7 @@ def is_academic_query(user_text: str) -> bool:
     return any(k in q for k in keywords)
 
 # Detects if a query needs cross-table reasoning and should be routed to LlamaHandler.
+@trace_function()
 def is_llama_query(user_text: str) -> bool:
     q = user_text.lower()
 
@@ -438,11 +450,13 @@ class SQLDumpRAG:
         print("done.")
 
 # Main retrieval function (keyword + semantic search)
+    @trace_function("SQLDumpRAG.retrieve")
     def retrieve(
         self,
         query: str,
         top_k: int = TOP_K,
         table_filter: Optional[str] = None,
+        trace_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         q_tokens = _tokenize(query)
         cand_ids: Set[int] = set()
@@ -491,6 +505,7 @@ class SQLDumpRAG:
             results.append(self.documents[i])
             if len(results) >= top_k:
                 break
+
         return results
 
 # Converts table rows into searchable documents
@@ -646,38 +661,37 @@ class MappingHandler:
 
     #  Public entry point — returns answer string or "" if not handled
      
-    def handle(self, question: str, state: ConversationState, history: List[Dict[str, str]]) -> str:
+    @trace_function("MappingHandler.handle")
+    def handle(self, question: str, state: ConversationState, history: List[Dict[str, str]],
+               trace_id: Optional[str] = None) -> str:
+        result: str = ""
         # 1. Follow-up from previous conversation state
         ans = self._try_follow_up(question, state, history)
         if ans:
-            return ans
-
-        # 2. Reverse lookup by phone/email/cabin value
-        ans = self._try_reverse_lookup(question)
-        if ans:
-            return ans
-
-        # 3. Structural queries: counts, timetables, division/group lists
-        ans = self._try_structured_answer(question, state)
-        if ans:
-            return ans
-
-        # 4. Direct person lookup — only if query is NOT a cross-table/teaching query
-        if is_llama_query(question):
-            return ""  # let Llama handle it
-
-        has_roll = bool(ROLL_RE.search(question.lower()))
-        has_name = bool(_name_tokens(question))
-        if has_roll or has_name:
-            ans = self._resolve_person(question, state)
+            result = ans
+        else:
+            # 2. Reverse lookup by phone/email/cabin value
+            ans = self._try_reverse_lookup(question)
             if ans:
-                return ans
-            return "No matching student or faculty found."
-
-        return ""
+                result = ans
+            else:
+                # 3. Structural queries: counts, timetables, division/group lists
+                ans = self._try_structured_answer(question, state)
+                if ans:
+                    result = ans
+                else:
+                    # 4. Direct person lookup — only if NOT a cross-table/teaching query
+                    if not is_llama_query(question):
+                        has_roll = bool(ROLL_RE.search(question.lower()))
+                        has_name = bool(_name_tokens(question))
+                        if has_roll or has_name:
+                            ans = self._resolve_person(question, state)
+                            result = ans if ans else "No matching student or faculty found."
+        return result
 
 #  Timetable helpers
 # Reverse lookup: find person by phone, email, cabin, or roll number value
+    @trace_function("MappingHandler._try_reverse_lookup")
     def _try_reverse_lookup(self, question: str) -> str:
         q = question.lower()
         # Extract phone number from query
@@ -822,6 +836,7 @@ class MappingHandler:
         return "\n".join(parts) if parts else "Not found"
 
 # Resolve person from query (by name or roll number)
+    @trace_function("MappingHandler._resolve_person")
     def _resolve_person(
         self,
         question: str,
@@ -974,6 +989,7 @@ class MappingHandler:
         return "\n".join(lines)
 
 # Try to answer structured queries (counts, lists, timetables, filters)
+    @trace_function("MappingHandler._try_structured_answer")
     def _try_structured_answer(self, question: str, state=None) -> str:
         requested = self._extract_requested_fields(question)
 
@@ -1229,6 +1245,7 @@ class MappingHandler:
         return any(re.fullmatch(p, q) for p in patterns)
 
 # Handle follow-up queries using conversation state
+    @trace_function("MappingHandler._try_follow_up")
     def _try_follow_up(
         self,
         question: str,
@@ -1349,17 +1366,25 @@ class LlamaHandler:
     def __init__(self, rag: SQLDumpRAG) -> None:
         self.rag = rag
 
+    @trace_function("LlamaHandler.handle")
     def handle(
         self,
         question: str,
         history: List[Dict[str, str]],
         state: Optional[Any] = None,
+        trace_id: Optional[str] = None,           
     ) -> Optional[str]:
-        context = self._build_context(question, history)
-        answer = self._call_ollama(question, context, history)
+        context = self._build_context(question, history, trace_id=trace_id)
+        answer = self._call_ollama(question, context, history, trace_id=trace_id)
         return answer
 
-    def _build_context(self, question: str, history: List[Dict[str, str]]) -> str:
+    @trace_function("LlamaHandler._build_context")
+    def _build_context(
+        self,
+        question: str,
+        history: List[Dict[str, str]],
+        trace_id: Optional[str] = None,
+    ) -> str:
         q = question.lower()
         sections: List[str] = []
 
@@ -1483,6 +1508,8 @@ class LlamaHandler:
         )) or bool(roll_matches) or (bool(name_tokens) and not wants_faculty and not wants_timetable)
         wants_count     = bool(re.search(r"\b(how many|count|total|number of)\b", q))
 
+
+
         # Always include all faculty records when timetable is needed so fac_map resolves correctly
         fac_lines = ["=== FACULTY RECORDS ==="]
         if cabin_rooms:
@@ -1596,7 +1623,7 @@ class LlamaHandler:
 
         if wants_timetable or rooms or days or times:
             filtered_tt: List[Dict[str, Any]] = []
-            print(f"[DEBUG] TT filter: divs={divs}, student_div_filter={student_div_filter}, total_rows={len(tt_rows)}")
+            if DEBUG: print(f"[DEBUG] TT filter: divs={divs}, student_div_filter={student_div_filter}, total_rows={len(tt_rows)}")
             for row in tt_rows:
                 if divs and _normalize_key(row.get("division")) not in divs:
                     continue
@@ -1642,7 +1669,7 @@ class LlamaHandler:
             # Cap timetable rows to stay within model token limit
             MAX_TT_ROWS = 279 if (not subj_filter and (is_free_slot_query or divs)) else (40 if not subj_filter else 279)
             if len(filtered_tt) > MAX_TT_ROWS:
-                print(f"[Info] Timetable rows capped from {len(filtered_tt)} to {MAX_TT_ROWS}")
+                if DEBUG: print(f"[Info] Timetable rows capped from {len(filtered_tt)} to {MAX_TT_ROWS}")
                 filtered_tt = filtered_tt[:MAX_TT_ROWS]
 
             tt_lines = ["=== TIMETABLE RECORDS ==="]
@@ -1683,6 +1710,7 @@ class LlamaHandler:
         full = "\n\n".join(sections)
         if len(full) > MAX_CONTEXT_CHARS:
             full = full[:MAX_CONTEXT_CHARS] + "\n...[truncated]"
+
         return full
 
     def _call_ollama(
@@ -1691,7 +1719,12 @@ class LlamaHandler:
         context_block: str,
         history: List[Dict[str, str]],
         max_history_turns: int = 2,
+        trace_id: Optional[str] = None,
     ) -> Optional[str]:
+        _model = OPENROUTER_MODEL if USE_OPENROUTER else OLLAMA_MODEL
+        _span  = tracker.span_llm(trace_id, user_question, len(context_block), _model)
+
+
         messages = []
         for turn in history[-(1 * 2):]:
             role = "user" if turn["role"] == "user" else "assistant"
@@ -1708,33 +1741,52 @@ class LlamaHandler:
             ),
         })
 
-        print(f"[Debug] Sending {len(context_block)} characters of context to LLM.")
+        if DEBUG: print(f"[Debug] Sending {len(context_block)} characters of context to LLM.")
 
         
-        # Use Groq API if enabled
-        if USE_GROQ:
-            try:
-                client = Groq(api_key=GROQ_API_KEY)
-                print("Bot: ", end="", flush=True)
-                completion = client.chat.completions.create(
-                    model=GROQ_MODEL,
-                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,  # type: ignore[arg-type]
-                    temperature=0.3,
-                    max_tokens=2000,
-                    stream=True,
-                )
-                collected = []
-                for chunk in completion:
-                    token = chunk.choices[0].delta.content or ""
-                    if token:
-                        print(token, end="", flush=True)
-                        collected.append(token)
-                print()
-                result = "".join(collected).strip()
-                return result if result else "I wasn't able to find an answer for that. Could you rephrase your question?"
-            except Exception as e:
-                print(f"\n[Groq] Error: {e}")
-                return f"An error occurred with Groq API: {e}"
+        if USE_OPENROUTER:
+            import time
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    client = OpenAI(
+                        api_key=OPENROUTER_API_KEY,
+                        base_url="https://openrouter.ai/api/v1",
+                    )
+                    print("Bot: ", end="", flush=True)
+                    completion = client.chat.completions.create(
+                        model=OPENROUTER_MODEL,
+                        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
+                        temperature=0.3,
+                        max_tokens=2000,
+                        stream=True,
+                    )
+                    collected = []
+                    for chunk in completion:
+                        token = chunk.choices[0].delta.content or ""
+                        if token:
+                            print(token, end="", flush=True)
+                            collected.append(token)
+                    print()
+                    result = "".join(collected).strip()
+                    tracker.end_span(_span, output={"response_length": len(result), "model": OPENROUTER_MODEL})
+
+                    return result if result else "I wasn't able to find an answer for that. Could you rephrase your question?"
+                except Exception as e:
+                    err_str = str(e)
+                    if "429" in err_str and attempt < max_retries - 1:
+                        wait = 30
+                        import re as _re
+                        m = _re.search(r"retry_after_seconds.*?(\d+\.?\d*)", err_str)
+                        if m:
+                            wait = int(float(m.group(1))) + 2
+                        print(f"\n[OpenRouter] Rate limited. Retrying in {wait}s... (attempt {attempt+1}/{max_retries})")
+                        time.sleep(wait)
+                        continue
+                    print(f"\n[OpenRouter] Error: {e}")
+                    tracker.end_span(_span, error=str(e))
+
+                    return f"An error occurred with OpenRouter API: {e}"
 
         # Fallback to Ollama
         payload = {
@@ -1775,22 +1827,33 @@ class LlamaHandler:
                     break
             print()
             result = "".join(collected).strip()
+            tracker.end_span(_span, output={"response_length": len(result), "model": OLLAMA_MODEL})
+
             return result if result else "I wasn't able to find an answer for that. Could you rephrase your question?"
         except requests.exceptions.ConnectionError:
+            tracker.end_span(_span, error="ConnectionError")
+
             print("[Ollama] Not reachable — is 'ollama serve' running?")
             return "Ollama is not reachable. Please make sure 'ollama serve' is running."
         except requests.exceptions.Timeout:
+            tracker.end_span(_span, error="Timeout")
+
             print("[Ollama] Request timed out.")
             return "The request timed out. The context might be too large — try a more specific question."
         except Exception as e:
+            tracker.end_span(_span, error=str(e))
+
             print(f"[Ollama] Error: {e}")
             return f"An error occurred: {e}"
 
     @staticmethod
     def is_available() -> bool:
-        if USE_GROQ:
+        if USE_OPENROUTER:
             try:
-                client = Groq(api_key=GROQ_API_KEY)
+                client = OpenAI(
+                    api_key=OPENROUTER_API_KEY,
+                    base_url="https://openrouter.ai/api/v1",
+                )
                 client.models.list()
                 return True
             except Exception:
@@ -1803,7 +1866,8 @@ class LlamaHandler:
 # Main chatbot function
 def main() -> None:
     print("=" * 60)
-    print("  ACADEMIC CHATBOT  —  (FAISS + MiniLM + llama3.1:8b)")
+    print("  ACADEMIC CHATBOT  —  (FAISS + MiniLM + llama3.2:3b)")
+    print("  With LangFuse Observability")
     print("=" * 60)
 
     # Load data
@@ -1813,96 +1877,122 @@ def main() -> None:
     print(f"done.  Tables: {', '.join(sorted(rag.rows_by_table.keys()))}")
     print(f"       Records: {len(rag.documents)}")
 
-    # Initialise handlers 
+    # Initialise handlers
     mapping_handler = MappingHandler(rag)
     llama_handler   = LlamaHandler(rag)
 
     use_llm = (not LOCAL_ONLY_MODE) and LlamaHandler.is_available()
     if use_llm:
-        if USE_GROQ:
-            print(f"[OK] Groq API ({GROQ_MODEL}) reachable - LLM handler ON.")
+        if USE_OPENROUTER:
+            print(f"[OK] OpenRouter API ({OPENROUTER_MODEL}) reachable - LLM handler ON.")
         else:
             print(f"[OK] Ollama ({OLLAMA_MODEL}) reachable - LLM handler ON.")
     else:
         print("[!] LLM not reachable - Mapping handler only.")
 
+    tracker.start_session(use_llm=use_llm, use_openrouter=USE_OPENROUTER)
+
     print("\nChatbot ready. Type 'exit' to quit.")
     print("Hello! How can I help you today?\n")
 
     history: List[Dict[str, str]] = []
-    state = ConversationState()
+    state      = ConversationState()
+    turn_count = 0
 
     while True:
         try:
             user_q = input("You: ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\nBot: Goodbye!")
+            tracker.end_session(turn_count, status="ended_by_user")
             break
 
         if not user_q:
             continue
 
+        turn_count += 1
         _append_history(history, "user", user_q)
+        tid = tracker.start_turn(user_q, turn_count)
 
-        # Exit 
+
+        # Exit
         if user_q.lower() in {"exit", "quit", "bye"}:
             bot_response = "Bye! Have a great day!"
             _append_history(history, "bot", bot_response)
+            tracker.end_turn(tid, bot_response, "exit")
+
             print(f"Bot: {bot_response}")
             break
 
-        # Greeting  
+        # Greeting
         if is_greeting(user_q):
             bot_response = "Hi! How can I help you with student and faculty info?"
             _append_history(history, "bot", bot_response)
+            tracker.end_turn(tid, bot_response, "greeting")
+
             print(f"Bot: {bot_response}\n")
             continue
 
-        # Out-of-scope check 
+        # Out-of-scope check
         if not is_academic_query(user_q) and not _name_tokens(user_q):
-            bot_response = (
-                "I'm designed only for academic queries about PDEU students and faculty."
-            )
+            bot_response = "I'm designed only for academic queries about PDEU students and faculty."
             _append_history(history, "bot", bot_response)
+            tracker.end_turn(tid, bot_response, "out_of_scope")
+
             print(f"Bot: {bot_response}\n")
             continue
+
+        handler_used = "no_handler"
 
         # Route: Llama for complex/cross-table queries
         if use_llm and is_llama_query(user_q):
             print("[Answered by: LLAMA]")
-            bot_response = llama_handler.handle(user_q, history[:-1])
+
+            bot_response = llama_handler.handle(user_q, history[:-1], trace_id=tid)
             if not bot_response:
                 bot_response = "I couldn't generate an answer. Please try rephrasing."
+            handler_used = "llama_complex"
             _append_history(history, "bot", bot_response)
+            tracker.end_turn(tid, bot_response, handler_used)
+            tracker.ask_and_record_feedback(tid)
             print(f"\n")
             continue
 
-        # Route: Mapping for direct/structural queries (non-llama path)
-        mapping_ans = mapping_handler.handle(user_q, state, history[:-1])
+        # Route: Mapping for direct/structural queries
+        mapping_ans = mapping_handler.handle(user_q, state, history[:-1], trace_id=tid)
         if mapping_ans:
             print("[Answered by: MAPPING]")
-            _append_history(history, "bot", mapping_ans)
-            print(f"Bot: {mapping_ans}\n")
+            bot_response = mapping_ans
+            handler_used = "mapping"
+
+            _append_history(history, "bot", bot_response)
+            tracker.end_turn(tid, bot_response, handler_used)
+            tracker.ask_and_record_feedback(tid)
+            print(f"Bot: {bot_response}\n")
             continue
 
-        # Fallback: Llama on anything not caught by mapping  
+        # Fallback: Llama on anything not caught by mapping
         if use_llm:
             print("[Answered by: LLAMA (fallback)]")
-            # Use the standard retrieve + context build for generic fallback
-            retrieved = rag.retrieve(user_q, top_k=TOP_K)
+
+            retrieved = rag.retrieve(user_q, top_k=TOP_K, trace_id=tid)
             if retrieved:
-                context = _build_fallback_context(user_q, retrieved, rag)
-                bot_response = llama_handler._call_ollama(user_q, context, history[:-1])
+                context      = _build_fallback_context(user_q, retrieved, rag)
+                bot_response = llama_handler._call_ollama(user_q, context, history[:-1], trace_id=tid)
             else:
                 bot_response = None
             if not bot_response:
                 bot_response = "I could not find that information in the database."
-            _append_history(history, "bot", bot_response)
-            print(f"\n")
+            handler_used = "llama_fallback"
         else:
             bot_response = "I could not find that information in the database."
-            _append_history(history, "bot", bot_response)
-            print(f"Bot: {bot_response}\n")
+
+        _append_history(history, "bot", bot_response)
+        tracker.end_turn(tid, bot_response, handler_used)
+        tracker.ask_and_record_feedback(tid)
+        print(f"\n")
+
+    tracker.end_session(turn_count)
 
 # Build fallback context for LLaMA when query is not complex
 def _build_fallback_context(

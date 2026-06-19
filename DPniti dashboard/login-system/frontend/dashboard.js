@@ -114,7 +114,7 @@ function openExamFileFromSlider() {
                 window.open('images/academic/ia.jpeg', '_blank');
             } else if (index === 1) {
                 // MIDS
-                window.open('images/academic/mids.jpeg', '_blank');
+                window.open('documents/mids2026.pdf', '_blank');
             } else if (index === 2) {
                 // ENDS
                 window.open('images/academic/ends.jpeg', '_blank');
@@ -130,9 +130,9 @@ function openExamFile(type) {
     if (type === 'ia') {
         fileUrl = 'images/academic/ia.jpeg';
     } else if (type === 'mids') {
-        fileUrl = '../../mids2026.pdf';
+        fileUrl = 'documents/mids2026.pdf';
     } else if (type === 'ends') {
-        fileUrl = '../../ends.jpeg';
+        fileUrl = 'images/academic/ends.jpeg';
     }
     
     if (fileUrl) {
@@ -142,7 +142,7 @@ function openExamFile(type) {
 
 // Function to open Holiday PDF
 function openHolidayPDF() {
-    window.open('../../holiday.pdf', '_blank');
+    window.open('documents/holiday.pdf', '_blank');
 }
 
 // Initialize all sliders

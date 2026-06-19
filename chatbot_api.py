@@ -5,6 +5,7 @@ from app import (
     is_greeting, is_academic_query, is_llama_query, _name_tokens,
     _append_history, _build_fallback_context, TOP_K, LOCAL_ONLY_MODE
 )
+from langfuse_integration import tracker
 
 app = Flask(__name__)
 CORS(app)
@@ -29,6 +30,7 @@ def chat():
     data       = request.get_json(force=True)
     user_q     = (data.get("message") or "").strip()
     session_id = data.get("session_id", "default")
+    user_id    = data.get("user_id")
 
     if not user_q:
         return jsonify({"reply": "Please type a message."})
@@ -39,27 +41,37 @@ def chat():
 
     _append_history(history, "user", user_q)
 
-    if user_q.lower() in {"exit", "quit", "bye"}:
-        reply = "Bye! Have a great day!"
-    elif is_greeting(user_q):
-        reply = "Hi! How can I help you with student and faculty info?"
-    elif not is_academic_query(user_q) and not _name_tokens(user_q):
-        reply = "I'm designed only for academic queries about PDEU students and faculty."
-    elif use_llm and is_llama_query(user_q):
-        reply = llama_handler.handle(user_q, history[:-1]) or "I couldn't generate an answer. Please try rephrasing."
-    else:
-        mapping_ans = mapping_handler.handle(user_q, state, history[:-1])
-        if mapping_ans:
-            reply = mapping_ans
-        elif use_llm:
-            retrieved = rag.retrieve(user_q, top_k=TOP_K)
-            if retrieved:
-                context = _build_fallback_context(user_q, retrieved, rag)
-                reply = llama_handler._call_ollama(user_q, context, history[:-1]) or "I could not find that information."
+    with tracker.trace(
+        name="handle-chatbot-message",
+        input_str=user_q,
+        session_id=session_id,
+        user_id=user_id,
+        tags=["qa-chatbot"]
+    ) as trace:
+        if user_q.lower() in {"exit", "quit", "bye"}:
+            reply = "Bye! Have a great day!"
+        elif is_greeting(user_q):
+            reply = "Hi! How can I help you with student and faculty info?"
+        elif not is_academic_query(user_q) and not _name_tokens(user_q):
+            reply = "I'm designed only for academic queries about PDEU students and faculty."
+        elif use_llm and is_llama_query(user_q):
+            reply = llama_handler.handle(user_q, history[:-1]) or "I couldn't generate an answer. Please try rephrasing."
+        else:
+            mapping_ans = mapping_handler.handle(user_q, state, history[:-1])
+            if mapping_ans:
+                reply = mapping_ans
+            elif use_llm:
+                retrieved = rag.retrieve(user_q, top_k=TOP_K)
+                if retrieved:
+                    context = _build_fallback_context(user_q, retrieved, rag)
+                    reply = llama_handler._call_ollama(user_q, context, history[:-1]) or "I could not find that information."
+                else:
+                    reply = "I could not find that information in the database."
             else:
                 reply = "I could not find that information in the database."
-        else:
-            reply = "I could not find that information in the database."
+
+        if trace:
+            trace.update(output=reply)
 
     _append_history(history, "bot", reply)
     return jsonify({"reply": reply})

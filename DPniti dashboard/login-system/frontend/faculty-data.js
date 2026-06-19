@@ -6,14 +6,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Aashka.Raval@sot.pdpu.ac.in",
-    "photo": "../../aashkaraval.jpeg",
+    "photo": "images/faculty/aashkaraval.jpeg",
     "qualification": "M.Tech",
     "phdSubject": "",
     "college": "PDEU",
     "researchInterest": "",
     "phone": "81601 30780",
     "cabin": "E block 2nd floor Cubical",
-    "timetable": "../../aashkatt.jpeg"
+    "timetable": "images/faculty/aashkatt.jpeg"
   },
   {
     "id": 2,
@@ -21,14 +21,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Archana.Nigam@sot.pdpu.ac.in",
-    "photo": "../../archananigam.png",
+    "photo": "images/faculty/archananigam.png",
     "qualification": "Ph.D, M.Tech",
     "phdSubject": "Intelligent Transportation Systems",
     "college": "DA-IICT Gandhinagar",
     "researchInterest": "Machine Learning, ITS",
     "phone": "92271 01906",
     "cabin": "Not Mentioned",
-    "timetable": "../../archanatt.jpeg"
+    "timetable": "images/faculty/archanatt.jpeg"
   },
   {
     "id": 3,
@@ -36,13 +36,13 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Ashish.Patel1@sot.pdpu.ac.in",
-    "photo": "../../ashishpatel.jpeg",
+    "photo": "images/faculty/ashishpatel.jpeg",
     "qualification": "Ph.D, M.E., B.E.",
     "phdSubject": "Computer Engineering",
     "college": "PDEU",
     "researchInterest": "Smart Systems",
     "cabin": "F 205",
-    "timetable": "../../ashishtt.jpeg"
+    "timetable": "images/faculty/ashishtt.jpeg"
   },
   {
     "id": 4,
@@ -50,14 +50,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Azriel.Henry_ad@sot.pdpu.ac.in",
-    "photo": "../../azrielhenry.jpeg",
+    "photo": "images/faculty/azrielhenry.jpeg",
     "qualification": "Ph.D, M.E",
     "phdSubject": "Cyber Security",
     "college": "Institute of Advanced Research Gandhinagar",
     "researchInterest": "Cyber Security & AI",
     "phone": "88661 46303",
     "cabin": "F 305",
-    "timetable": "../../azrieltt.jpeg"
+    "timetable": "images/faculty/azrieltt.jpeg"
   },
   {
     "id": 5,
@@ -65,13 +65,13 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Bhaumik.Thakkar@sot.pdpu.ac.in",
-    "photo": "../../bhaumikthakkar.jpeg",
+    "photo": "images/faculty/bhaumikthakkar.jpeg",
     "qualification": "MTech",
     "phdSubject": "",
     "college": "IIIT Bangalore",
     "researchInterest": "",
     "cabin": "Not Mentioned",
-    "timetable": "../../bhaumiktt.jpeg"
+    "timetable": "images/faculty/bhaumiktt.jpeg"
   },
   {
     "id": 6,
@@ -79,14 +79,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Davinder.Singh@sot.pdpu.ac.in",
-    "photo": "../../davinderpaulsingh.jpeg",
+    "photo": "images/faculty/davinderpaulsingh.jpeg",
     "qualification": "Ph.D, M.Tech",
     "phdSubject": "Computer Science & Engineering",
     "college": "Shri Mata Vaishno Devi University J&K",
     "researchInterest": "AI & ML",
     "phone": "70062 91893",
     "cabin": "E 215",
-    "timetable": "../../davindertt.jpeg"
+    "timetable": "images/faculty/davindertt.jpeg"
   },
   {
     "id": 7,
@@ -94,14 +94,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Debabrata.Swain@sot.pdpu.ac.in",
-    "photo": "../../debabrataswain.jpeg",
+    "photo": "images/faculty/debabrataswain.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science and Engineering",
     "college": "KIIT University",
     "researchInterest": "ML, DL & NLP",
     "phone": "94202 82817",
     "cabin": "F block 3rd floor Cubical",
-    "timetable": "../../debabratatt.jpeg"
+    "timetable": "images/faculty/debabratatt.jpeg"
   },
   {
     "id": 8,
@@ -109,14 +109,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Hargeet.Kaur@sot.pdpu.ac.in",
-    "photo": "../../hargeetkaur.jpeg",
+    "photo": "images/faculty/hargeetkaur.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science & Engineering",
     "college": "IIT Jodhpar",
     "researchInterest": "Quantum Information & Computation",
     "phone": "70237 90523",
     "cabin": "F block 3rd floor Cubical",
-    "timetable": "../../hargeettt.jpeg"
+    "timetable": "images/faculty/hargeettt.jpeg"
   },
   {
     "id": 9,
@@ -124,14 +124,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Kalgi.Gandhi@sot.pdpu.ac.in",
-    "photo": "../../kalgigandhi.jpeg",
+    "photo": "images/faculty/kalgigandhi.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Distributed Databases",
     "college": "DAU Gandhinagar",
     "researchInterest": "Databases, Edge Computing",
     "phone": "79843 80204",
     "cabin": "F 105",
-    "timetable": "../../kalgitt.jpeg"
+    "timetable": "images/faculty/kalgitt.jpeg"
   },
   {
     "id": 10,
@@ -139,14 +139,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Kaushal.Shah@sot.pdpu.ac.in",
-    "photo": "../../kaushalshah.jpeg",
+    "photo": "images/faculty/kaushalshah.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science & Engineering",
     "college": "SVNIT",
     "researchInterest": "Blockchain Technology",
     "phone": "74956 63470",
     "cabin": "F block 5th floor Cubical",
-    "timetable": "../../kaushaltt.jpeg"
+    "timetable": "images/faculty/kaushaltt.jpeg"
   },
   {
     "id": 11,
@@ -154,14 +154,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Komal.S@sot.pdpu.ac.in",
-    "photo": "../../komalsingh.jpeg",
+    "photo": "images/faculty/komalsingh.jpeg",
     "qualification": "M.E",
     "phdSubject": "",
     "college": "LDRP",
     "researchInterest": "",
     "phone": "85117 05400",
     "cabin": "F 305",
-    "timetable": "../../komaltt.jpeg"
+    "timetable": "images/faculty/komaltt.jpeg"
   },
   {
     "id": 12,
@@ -169,14 +169,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Manish.Paliwal@sot.pdpu.ac.in",
-    "photo": "../../manishpaliwal.jpeg",
+    "photo": "images/faculty/manishpaliwal.jpeg",
     "qualification": "B.E., M.Tech., Ph.D",
     "phdSubject": "Software & Distributed Networks",
     "college": "VNIT Nagpur",
     "researchInterest": "Software Defined Networks",
     "phone": "77449 35721",
     "cabin": "F block 5th floor Cubical",
-    "timetable": "../../manishtt.jpeg"
+    "timetable": "images/faculty/manishtt.jpeg"
   },
   {
     "id": 13,
@@ -184,14 +184,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Nandini.Modi@sot.pdpu.ac.in",
-    "photo": "../../nandinimodi.jpeg",
+    "photo": "images/faculty/nandinimodi.jpeg",
     "qualification": "Ph.D, M.Tech",
     "phdSubject": "Computer Science & Engineering",
     "college": "Chitkari University",
     "researchInterest": "Eye Tracking & NLP",
     "phone": "82839 21106",
     "cabin": "F 205",
-    "timetable": "../../nandinitt.jpeg"
+    "timetable": "images/faculty/nandinitt.jpeg"
   },
   {
     "id": 14,
@@ -199,14 +199,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Payal.Chaudhari@sot.pdpu.ac.in",
-    "photo": "../../payalchaudhri.jpeg",
+    "photo": "images/faculty/payalchaudhri.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science & Engineering",
     "college": "DA-IICT Gandhinagar",
     "researchInterest": "Information Security, IoT",
     "phone": "99091 80927",
     "cabin": "E 215",
-    "timetable": "../../payaltt.jpeg"
+    "timetable": "images/faculty/payaltt.jpeg"
   },
   {
     "id": 15,
@@ -214,27 +214,27 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Prarthana.Mehta@sot.pdpu.ac.in",
-    "photo": "../../prathnamehta.jpeg",
+    "photo": "images/faculty/prathnamehta.jpeg",
     "qualification": "ME",
     "phdSubject": "",
     "college": "LD College of Engineering Ahmedabad",
     "researchInterest": "Smart Grid Security",
     "phone": "81607 37440",
     "cabin": "F 305",
-    "timetable": "../../prarthanatt.jpeg"
+    "timetable": "images/faculty/prarthanatt.jpeg"
   },
   {
     "id": 16,
     "name": "Dr. Punit Gupta",
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
-    "email": "Punit.Gupta@sot.pdpu.ac.in",    "photo": "../../punitgupta.jpeg",    "qualification": "Ph.D",
+    "email": "Punit.Gupta@sot.pdpu.ac.in",    "photo": "images/faculty/punitgupta.jpeg",    "qualification": "Ph.D",
     "cabin": "F 105",
     "phdSubject": "Cloud Computing Trust Management",
     "college": "Jaypee University of Information Technology",
     "researchInterest": "Cloud Computing",
     "phone": "98822 05191",
-    "timetable": "../../punittt.jpeg"
+    "timetable": "images/faculty/punittt.jpeg"
   },
   {
     "id": 17,
@@ -242,14 +242,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Rajeev.Gupta@sot.pdpu.ac.in",
-    "photo": "../../rajeevgupta.jpeg",
+    "photo": "images/faculty/rajeevgupta.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science & Engineering",
     "college": "MANIT Bhopal",
     "researchInterest": "ML, DL & AI",
     "phone": "98939 44156",
     "cabin": "F block 1st floor Cubical",
-    "timetable": "../../rajeevtt.jpeg"
+    "timetable": "images/faculty/rajeevtt.jpeg"
   },
   {
     "id": 18,
@@ -257,13 +257,13 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Riddhi.Thakkar@sot.pdpu.ac.in",
-    "photo": "../../riddhithakkar.jpeg",
+    "photo": "images/faculty/riddhithakkar.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science & Engineering",
     "college": "",
     "researchInterest": "",
     "cabin": "F 305",
-    "timetable": "../../riddhitt.jpeg"
+    "timetable": "images/faculty/riddhitt.jpeg"
   },
   {
     "id": 19,
@@ -271,13 +271,13 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Rutvij.Jhaveri@sot.pdpu.ac.in",
-    "photo": "../../rutvijjhaveri.jpeg",
+    "photo": "images/faculty/rutvijjhaveri.jpeg",
     "qualification": "Ph.D, M.Tech, B.E.",
     "phdSubject": "Software Defined Networking",
     "college": "Nirma University",
     "researchInterest": "Software Defined Networking",
     "cabin": "E 209-2",
-    "timetable": "../../rutvijtt.jpeg"
+    "timetable": "images/faculty/rutvijtt.jpeg"
   },
   {
     "id": 20,
@@ -285,14 +285,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Shilpa.Pandey@sot.pdpu.ac.in",
-    "photo": "../../shilpapandey.jpeg",
+    "photo": "images/faculty/shilpapandey.jpeg",
     "qualification": "Ph.D, M.Tech, B.Tech",
     "phdSubject": "Computer Vision & Machine Learning",
     "college": "IIT Jodhpur",
     "researchInterest": "Deep Learning",
     "phone": "77909 15175",
     "cabin": "E 213",
-    "timetable": "../../shilpatt.jpeg"
+    "timetable": "images/faculty/shilpatt.jpeg"
   },
   {
     "id": 21,
@@ -300,14 +300,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Sidheswar.Routray@sot.pdpu.ac.in",
-    "photo": "../../sideshwarroutray.jpeg",
+    "photo": "images/faculty/sideshwarroutray.jpeg",
     "qualification": "Ph.D, M.Tech",
     "phdSubject": "Artificial Intelligence",
     "college": "KIIT University",
     "researchInterest": "AI, Machine Learning",
     "phone": "98615 95680",
     "cabin": "F 105",
-    "timetable": "../../sideshwartt.jpeg"
+    "timetable": "images/faculty/sideshwartt.jpeg"
   },
   {
     "id": 22,
@@ -315,14 +315,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Tanmay.Bhowmik@sot.pdpu.ac.in",
-    "photo": "../../tanmaybhaumik.jpeg",
+    "photo": "images/faculty/tanmaybhaumik.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Speech Processing",
     "college": "IIT Kharagpur",
     "researchInterest": "Speech Processing",
     "phone": "94764 09727",
     "cabin": "F block 1st floor Cubical",
-    "timetable": "../../tanmaytt.jpeg"
+    "timetable": "images/faculty/tanmaytt.jpeg"
   },
   {
     "id": 23,
@@ -330,14 +330,14 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Trishna.Paul@sot.pdpu.ac.in",
-    "photo": "../../trishnapaul.jpeg",
+    "photo": "images/faculty/trishnapaul.jpeg",
     "qualification": "Ph.D",
     "phdSubject": "Computer Science & Engineering",
     "college": "BITS Pilani",
     "researchInterest": "AI & ML",
     "phone": "70632 29292",
     "cabin": "F 305",
-    "timetable": "../../trishnatt.jpeg"
+    "timetable": "images/faculty/trishnatt.jpeg"
   },
   {
     "id": 24,
@@ -345,13 +345,13 @@ const facultyData = [
     "designation": "Assistant Professor",
     "department": "Department of Computer Science and Engineering, School of Technology",
     "email": "Utkarsh.Tiwari@sot.pdpu.ac.in",
-    "photo": "../../utkarshtiwari.jpeg",
+    "photo": "images/faculty/utkarshtiwari.jpeg",
     "qualification": "Ph.D, M.Tech, B.E.",
     "phdSubject": "Hardware Security",
     "college": "IIIT Naya Raipur",
     "researchInterest": "Cryptography & Hardware Security",
     "phone": "90981 59815",
     "cabin": "E block 2nd floor Cubical",
-    "timetable": "../../utkashtt.jpeg"
+    "timetable": "images/faculty/utkashtt.jpeg"
   }
 ];

@@ -47,7 +47,7 @@
         fab.setAttribute('aria-label', 'Open DPniti assistant');
 
         const fabImg = document.createElement('img');
-        fabImg.src = 'dp.jpeg';
+        fabImg.src = 'images/extra/dp.jpeg';
         fabImg.alt = 'DPniti assistant';
         fab.appendChild(fabImg);
 
@@ -62,7 +62,7 @@
         header.className = 'dpniti-chat-header';
 
         const avatar = document.createElement('img');
-        avatar.src = 'dp.jpeg';
+        avatar.src = 'images/extra/dp.jpeg';
         avatar.className = 'dpniti-header-avatar';
         avatar.alt = 'DPniti';
 
