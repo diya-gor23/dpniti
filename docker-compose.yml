@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+
+  # ─── MySQL Database ───────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: dpniti_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: dpniti_root_pass
+      MYSQL_DATABASE: auth_db
+      MYSQL_USER: dpniti_user
+      MYSQL_PASSWORD: dpniti_pass
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./frontend/auth_db.sql:/docker-entrypoint-initdb.d/01_auth.sql
+      - ./chatbot/dpniti.sql:/docker-entrypoint-initdb.d/02_dpniti.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # ─── Node.js Backend ──────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: dpniti_backend
+    restart: unless-stopped
+    environment:
+      PORT: 5000
+      DB_HOST: db
+      DB_USER: dpniti_user
+      DB_PASSWORD: dpniti_pass
+      DB_DATABASE: auth_db
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+
+  # ─── Python Chatbot ───────────────────────────────────
+  chatbot:
+    build: ./chatbot
+    container_name: dpniti_chatbot
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_USER: dpniti_user
+      DB_PASSWORD: dpniti_pass
+      DB_DATABASE: dpniti
+      LANGFUSE_ENABLED: "true"
+      
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+      # Add your OpenRouter key here:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5001:5001"
+
+  # ─── Nginx Frontend ───────────────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: dpniti_frontend
+    restart: unless-stopped
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - chatbot
+
+volumes:
+  db_data:

@@ -1,4 +1,5 @@
 // Signup Page Script
+<script src="config.js"></script>
 
 const signupForm = document.getElementById('signupForm');
 const nameInput = document.getElementById('signupName');
@@ -102,7 +103,7 @@ signupForm.addEventListener('submit', async (e) => {
         submitBtn.textContent = 'Creating Account...';
 
         // Send signup request to backend
-        const response = await fetch(CONFIG.API_URL + '/api/auth/signup', {
+        const response = await fetch(`${CONFIG.BACKEND_URL}/api/auth/signup`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

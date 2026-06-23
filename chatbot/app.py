@@ -15,8 +15,6 @@ try:
 except ImportError:
     SEMANTIC_AVAILABLE = False
 
-import requests
-
 from openai import OpenAI
 
 import time
@@ -28,18 +26,13 @@ from langfuse_integration import tracker, trace_function
 # ─────────────────────────────────────────────────────────────────────────────
 
 #####  CONFIG
-DEBUG           = False                                # Set to True to see debug info
-OLLAMA_URL      = "http://localhost:11434"
-OLLAMA_MODEL    = "llama3.2:3b"
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")   # Get from: https://openrouter.ai/keys
-OPENROUTER_MODEL   = "openrouter/free"       # Free model — ends with :free
-USE_OPENROUTER  = True                                 # OpenRouter enabled
-            
+DEBUG              = False                             # Set to True to see debug info
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL   = "openrouter/free"                 # Free model — ends with :free
+
 SQL_DUMP_PATH   = "dpniti.sql"
 TOP_K           = 4
 MAX_CONTEXT_CHARS = 20000
-LOCAL_ONLY_MODE = False
-OLLAMA_TIMEOUT  = 120
 
 EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
 FAISS_INDEX_PATH = "faiss_index.bin"
@@ -63,7 +56,7 @@ QUERY_STOPWORDS: frozenset = frozenset({
     "our", "ours", "your", "yours",
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
     "today", "tomorrow", "yesterday", "week", "daily", "weekly",
-    "dr", "mr", "ms", "mrs", "prof", "sir", "maam", "madam", "mam" 
+    "dr", "mr", "ms", "mrs", "prof", "sir", "maam", "madam", "mam"
 })
 
 ROLL_RE = re.compile(r"\b(\d{2}bcp\d+[a-z]?)\b", re.IGNORECASE)
@@ -83,7 +76,7 @@ STUDENT_KEYWORDS: List[str] = [
     "student", "students", "learner", "learners",
 ]
 
-##### System prompt used by Llama for all its answers
+##### System prompt used by LLM for all its answers
 SYSTEM_PROMPT = """You are a friendly academic assistant for PDEU (Pandit Deendayal Energy University).
 You ONLY answer using the DATABASE RECORDS provided in each message. Never use outside knowledge.
 
@@ -117,46 +110,38 @@ IMPORTANT - For cross-table questions always:
 """
 
 #####  SHARED HELPERS
-# If value is None or empty, returns "Not available".
 def _safe_text(v: Any) -> str:
     if v is None:
         return "Not available"
     t = str(v).strip()
     return t if t else "Not available"
 
-# Removes stopwords and keeps only lowercase words with length >= 2.
 def _name_tokens(text: str) -> List[str]:
     return [
         w for w in re.findall(r"[a-z]+", text.lower())
         if w not in QUERY_STOPWORDS and len(w) >= 2
     ]
 
-# Useful for matching and comparison. Keeps only alphanumeric lowercase tokens.
 def _tokenize(text: str) -> Set[str]:
     return set(re.findall(r"[a-zA-Z0-9]+", text.lower()))
 
-# Cleans subject names by removing codes like "20CP307T - ".
 def _clean_subject_name(raw: str) -> str:
     return re.sub(r"^\d+[A-Z]+\d+[A-Z]*\s*[-–]\s*", "", raw).strip()
 
-# Normalizes a value by removing all non-alphanumeric characters
 def _normalize_key(v: Any) -> str:
     return re.sub(r"[^a-z0-9]", "", str(v or "").lower().strip())
 
-# Splits group values into components like "g1", "g2".
 def _split_group_components(v: Any) -> Set[str]:
     raw = str(v or "").lower().strip()
     c = set(re.findall(r"g\d+", raw))
     return c if c else ({_normalize_key(raw)} if _normalize_key(raw) else set())
 
-# Extracts division keys like "div1", "div2" from user query.
 def _extract_division_keys(query: str) -> Set[str]:
     return {
         f"div{m.group(1)}"
         for m in re.finditer(r"\b(?:div(?:ision)?)[\s\-]*(\d{1,2})\b", query.lower())
     }
 
-# Extracts group keys like "g1", "g2", "group 1", "grp 2" from query.
 def _extract_group_keys(query: str) -> Set[str]:
     q = query.lower()
     keys: Set[str] = {m.group(0) for m in re.finditer(r"\bg\d+(?:g\d+)?\b", q)}
@@ -166,12 +151,10 @@ def _extract_group_keys(query: str) -> Set[str]:
     }
     return keys
 
-# Extracts day names (e.g., Monday, Tuesday) from query.
 def _extract_day_filters(query: str) -> Set[str]:
     days = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
     return {d for d in days if d in query.lower()}
 
-# Supports formats like HH:MM and AM/PM.
 def _time_to_minutes(v: Any) -> Optional[int]:
     t = str(v or "").strip().lower()
     m = re.match(r"^(\d{1,2}):(\d{2})(?::\d{2})?$", t)
@@ -188,7 +171,6 @@ def _time_to_minutes(v: Any) -> Optional[int]:
         hh = 12 if hh == 12 else hh + 12
     return hh * 60
 
-# Supports formats like "2:30", "2 pm", or "at 2"
 def _extract_time_filters(query: str) -> List[int]:
     q, times = query.lower(), []
     for m in re.finditer(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b", q):
@@ -210,7 +192,6 @@ def _extract_time_filters(query: str) -> List[int]:
             unique.append(t)
     return unique
 
-# Checks if a timetable row matches given time filters.
 def _row_matches_time(row: Dict[str, Any], times: List[int], bare_hour: bool = False) -> bool:
     if not times:
         return True
@@ -224,7 +205,6 @@ def _row_matches_time(row: Dict[str, Any], times: List[int], bare_hour: bool = F
             return True
     return False
 
-# Checks if a row's group matches required group filters.
 def _row_matches_groups(group_val: Any, req: Set[str]) -> bool:
     if not req:
         return True
@@ -232,7 +212,6 @@ def _row_matches_groups(group_val: Any, req: Set[str]) -> bool:
     comp = _split_group_components(group_val)
     return any(r == norm or r in comp for r in req)
 
-# Sorts entries and displays day, time, subject, division, group, and room.
 def _format_timetable_entries(entries: List[Dict[str, Any]]) -> str:
     if not entries:
         return "Not available"
@@ -259,18 +238,15 @@ def _format_timetable_entries(entries: List[Dict[str, Any]]) -> str:
         )
     return "\n".join(lines)
 
-# Appends a message (user/bot) into chat history.
 def _append_history(history: List[Dict[str, str]], role: str, content: str) -> None:
     history.append({"role": role, "content": content})
 
-# Retrieves the last message sent by the bot from history.
 def _last_bot_message(history: List[Dict[str, str]]) -> str:
     for item in reversed(history):
         if item.get("role") == "bot":
             return str(item.get("content", ""))
     return ""
 
-# Detects if user input is a greeting message.
 @trace_function()
 def is_greeting(user_text: str) -> bool:
     t = user_text.lower().strip()
@@ -287,13 +263,11 @@ def is_greeting(user_text: str) -> bool:
             return True
     return False
 
-# Detects if user query is academic-related using keywords or patterns.
 @trace_function()
 def is_academic_query(user_text: str) -> bool:
     q = user_text.lower()
     if re.search(r"\b\d{2}bcp\d+[a-z]?\b", q):
         return True
-    # If it contains any digit sequence (phone, roll, room) treat as academic
     if re.search(r"\b\d{7,}\b", q):
         return True
     keywords = [
@@ -309,27 +283,22 @@ def is_academic_query(user_text: str) -> bool:
     ]
     return any(k in q for k in keywords)
 
-# Detects if a query needs cross-table reasoning and should be routed to LlamaHandler.
 @trace_function()
 def is_llama_query(user_text: str) -> bool:
     q = user_text.lower()
 
-    # If it's a simple "timetable of <name>" or "schedule of <name>" — let Mapping handle it
     if re.search(r"\b(timetable|schedule|time table)\s+(of|for)\b", q):
         return False
     if re.search(r"\b(what is|show|give)\s+(the\s+)?(timetable|schedule)\s+(of|for)\b", q):
         return False
-    # "give her/his/their timetable" — pronoun reference, let Mapping use state
     if re.search(r"\b(his|her|their|my)\s+(timetable|schedule|time table|tt)\b", q):
         return False
     if re.search(r"\b(timetable|schedule|time table|tt)\s+(of|for)?\s*(him|her|them)\b", q):
         return False
 
-    # "list of faculty who teach in div X" — handle deterministically in MappingHandler
     if _extract_division_keys(user_text) and re.search(r"\b(faculty|teacher|professor|staff)\b", q):
         return False
 
-    # "faculty of <subject>" / "who teaches <subject>" — handle in MappingHandler
     if re.search(r"\b(faculty|teacher|professor)\s+(of|for)\b", q):
         return False
 
@@ -351,7 +320,6 @@ def is_llama_query(user_text: str) -> bool:
     return any(k in q for k in cross_table_keywords)
 
 ##### CONVERSATION STATE
-# Helps in remembering last selected person/entity and handling follow-up queries.
 class ConversationState:
     def __init__(self) -> None:
         self.last_table: str = ""
@@ -373,12 +341,8 @@ class ConversationState:
         self.pending_matches = []
         self.pending_intent = ""
 
-#  SQL DUMP RAG  (data layer — shared by both handlers)
-
+#  SQL DUMP RAG
 class SQLDumpRAG:
-    """Loads the SQL dump and provides retrieval over it."""
-
-
     def __init__(self, sql_path: str, config: Optional[Dict[str, Any]] = None) -> None:
         self.sql_path = Path(sql_path)
         self.config = {**DEFAULT_WEIGHTS, **(config or {})}
@@ -390,7 +354,6 @@ class SQLDumpRAG:
         self._embed_model: Optional[Any] = None
         self._faiss_index: Optional[Any] = None
 
-# Loads SQL file and prepares all indexes
     def load(self) -> None:
         sql_text = self.sql_path.read_text(encoding="utf-8", errors="ignore")
         self.rows_by_table = self._parse_insert_statements(sql_text)
@@ -402,7 +365,6 @@ class SQLDumpRAG:
         print(f"Loaded {len(self.documents)} documents across "
               f"{len(self.rows_by_table)} tables.")
 
-# Returns timetable entries for a given faculty ID
     def get_faculty_timetable(self, faculty_id: Any) -> List[Dict[str, Any]]:
         if faculty_id is None:
             return []
@@ -411,29 +373,22 @@ class SQLDumpRAG:
             if str(r.get("faculty_id", "")) == str(faculty_id)
         ]
 
-# Builds semantic search index using FAISS
     def build_semantic_index(self) -> None:
-
-        # If semantic libraries not installed → skip
         if not SEMANTIC_AVAILABLE:
             print("Semantic search unavailable — install faiss + sentence-transformers.")
             return
-        
-        # If index already exists → load from disk
+
         if os.path.exists(FAISS_INDEX_PATH) and os.path.exists(FAISS_DOCS_PATH):
             print("Loading semantic index from disk ...", end=" ", flush=True)
             self._faiss_index = faiss.read_index(FAISS_INDEX_PATH)
             with open(FAISS_DOCS_PATH, "rb") as f:
                 doc_count = pickle.load(f)
-
-            # If same number of docs → reuse index
             if doc_count == len(self.documents):
                 self._embed_model = SentenceTransformer(EMBED_MODEL_NAME)
                 print("done.")
                 return
             print("cache mismatch — rebuilding.")
 
-        
         print("Building semantic index ...", end=" ", flush=True)
         self._embed_model = SentenceTransformer(EMBED_MODEL_NAME)
         texts = [self._format_doc_text(d["table"], d["row"]) for d in self.documents]
@@ -442,14 +397,13 @@ class SQLDumpRAG:
         ).astype(np.float32)
         faiss.normalize_L2(emb)
         idx = faiss.IndexFlatIP(emb.shape[1])
-        idx.add(emb)  # type: ignore[arg-type]
+        idx.add(emb)
         self._faiss_index = idx
         faiss.write_index(idx, FAISS_INDEX_PATH)
         with open(FAISS_DOCS_PATH, "wb") as f:
             pickle.dump(len(self.documents), f)
         print("done.")
 
-# Main retrieval function (keyword + semantic search)
     @trace_function("SQLDumpRAG.retrieve")
     def retrieve(
         self,
@@ -508,10 +462,7 @@ class SQLDumpRAG:
 
         return results
 
-# Converts table rows into searchable documents
-    def _build_documents(
-        self, rows_by_table: Dict[str, List[Dict[str, Any]]]
-    ) -> List[Dict[str, Any]]:
+    def _build_documents(self, rows_by_table: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
         docs = []
         for table, rows in rows_by_table.items():
             for row in rows:
@@ -529,7 +480,6 @@ class SQLDumpRAG:
                 })
         return docs
 
-# Converts a row into readable text format
     @staticmethod
     def _format_doc_text(table: str, row: Dict[str, Any]) -> str:
         parts = [f"Type: {table}"]
@@ -539,7 +489,6 @@ class SQLDumpRAG:
             parts.append(f"{k.replace('_', ' ').title()}: {v}")
         return ". ".join(parts)
 
-# Builds inverted index (token → document IDs)
     def _build_inverted_index(self, docs: List[Dict[str, Any]]) -> Dict[str, Set[int]]:
         idx: Dict[str, Set[int]] = {}
         for i, d in enumerate(docs):
@@ -547,14 +496,12 @@ class SQLDumpRAG:
                 idx.setdefault(t, set()).add(i)
         return idx
 
-# Builds table-wise index (table → document IDs)
     def _build_table_index(self, docs: List[Dict[str, Any]]) -> Dict[str, List[int]]:
         idx: Dict[str, List[int]] = {}
         for i, d in enumerate(docs):
             idx.setdefault(d["table"], []).append(i)
         return idx
 
-# Parses SQL INSERT statements into Python dictionaries
     def _parse_insert_statements(self, sql_text: str) -> Dict[str, List[Dict[str, Any]]]:
         pattern = re.compile(
             r"INSERT INTO\s+`(?P<table>[^`]+)`\s*\((?P<cols>.*?)\)\s*VALUES\s*(?P<vals>.*?);",
@@ -573,7 +520,6 @@ class SQLDumpRAG:
                 )
         return out
 
-# Splits multiple tuples from SQL VALUES clause
     def _split_tuples(self, blob: str) -> List[str]:
         tuples, in_str, escaped, depth, cur = [], False, False, 0, []
         for ch in blob:
@@ -601,7 +547,6 @@ class SQLDumpRAG:
                 cur.append(ch)
         return tuples
 
-# Splits values inside a tuple
     def _split_items(self, tup: str) -> List[str]:
         items, in_str, escaped, cur = [], False, False, []
         for ch in tup:
@@ -618,7 +563,6 @@ class SQLDumpRAG:
             items.append("".join(cur).strip())
         return items
 
-# Converts SQL value into Python type (int, float, string, None)
     def _parse_sql_value(self, v: str) -> Any:
         v = v.strip()
         if v.upper() == "NULL":
@@ -640,47 +584,27 @@ class SQLDumpRAG:
         return v
 
 
-#  Handles: direct person lookup by name/roll, division/group lists,
-#           counts, timetable queries, follow-up from state.
-#  These are fast, deterministic, rule-based answers.
-
+#  MAPPING HANDLER
 class MappingHandler:
-    """
-    Answers queries that can be resolved deterministically from the data:
-    - Person lookup by name or roll number (students & faculty)
-    - Multiple-name queries ("roll no of Prachi and Kshiti")
-    - Clarification when multiple people share a name
-    - Division/group student lists
-    - Count queries (how many students in div 5)
-    - Timetable lookup by division/group/day/time
-    - Follow-up questions using conversation state
-    """
-
     def __init__(self, rag: SQLDumpRAG) -> None:
         self.rag = rag
 
-    #  Public entry point — returns answer string or "" if not handled
-     
     @trace_function("MappingHandler.handle")
     def handle(self, question: str, state: ConversationState, history: List[Dict[str, str]],
                trace_id: Optional[str] = None) -> str:
         result: str = ""
-        # 1. Follow-up from previous conversation state
         ans = self._try_follow_up(question, state, history)
         if ans:
             result = ans
         else:
-            # 2. Reverse lookup by phone/email/cabin value
             ans = self._try_reverse_lookup(question)
             if ans:
                 result = ans
             else:
-                # 3. Structural queries: counts, timetables, division/group lists
                 ans = self._try_structured_answer(question, state)
                 if ans:
                     result = ans
                 else:
-                    # 4. Direct person lookup — only if NOT a cross-table/teaching query
                     if not is_llama_query(question):
                         has_roll = bool(ROLL_RE.search(question.lower()))
                         has_name = bool(_name_tokens(question))
@@ -689,12 +613,9 @@ class MappingHandler:
                             result = ans if ans else "No matching student or faculty found."
         return result
 
-#  Timetable helpers
-# Reverse lookup: find person by phone, email, cabin, or roll number value
     @trace_function("MappingHandler._try_reverse_lookup")
     def _try_reverse_lookup(self, question: str) -> str:
         q = question.lower()
-        # Extract phone number from query
         phone_match = re.search(r"\b(\d{10})\b", q)
         if phone_match:
             phone = phone_match.group(1)
@@ -702,7 +623,6 @@ class MappingHandler:
                 for row in self.rag.rows_by_table.get(tbl, []):
                     if str(row.get("phone", "")).replace(" ", "") == phone:
                         return self._build_response_from_fields(dict(row), tbl, set())
-        # Extract email from query
         email_match = re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", q)
         if email_match:
             email = email_match.group(0).lower()
@@ -712,8 +632,6 @@ class MappingHandler:
                         return self._build_response_from_fields(dict(row), tbl, set())
         return ""
 
-#  Timetable helpers
-# Attach faculty timetable to a row based on optional filters (day/time)
     def _attach_faculty_timetable(self, row: Dict[str, Any], question: str = "") -> Dict[str, Any]:
         if "_timetable_text" in row and not question:
             return row
@@ -731,7 +649,6 @@ class MappingHandler:
         row["_timetable_text"] = _format_timetable_entries(all_entries) if all_entries else "Not available"
         return row
 
-# Attach student timetable based on division + group + optional filters
     def _attach_student_timetable(self, row: Dict[str, Any], question: str = "") -> Dict[str, Any]:
         if "_timetable_text" in row and not question:
             return row
@@ -755,17 +672,13 @@ class MappingHandler:
         row["_timetable_text"] = _format_timetable_entries(matched) if matched else "Not available"
         return row
 
-# Extract which fields user is asking for (like name, email, timetable, etc.)
     def _extract_requested_fields(self, query: str) -> Set[str]:
         q = query.lower()
         req: Set[str] = set()
-        # "full detail", "all info", "everything" = return all fields
         if re.search(r"\b(full|complete|all|everything|detail|details|info|information)\b", q):
             if re.search(r"\b(detail|details|info|information|about|full|complete|everything)\b", q):
-                return set()  # empty = show all fields
+                return set()
         if re.search(r"\b(roll|roll_no|roll no|rollno)\b", q):          req.add("roll_no")
-        # Don't add division/group as requested fields for list queries
-        # (they are filter criteria, not display fields)
         if re.search(r"\b(division|div)\b", q) and not re.search(r"\b(list|students|student)\b", q):
             req.add("division")
         if re.search(r"\b(group|grp)\b", q) and not re.search(r"\b(list|students|student)\b", q):
@@ -785,7 +698,6 @@ class MappingHandler:
             req.add("timetable")
         return req
 
-# Build final response string using selected fields
     def _build_response_from_fields(self, row: Dict[str, Any], table: str, requested: Set[str]) -> str:
         field_map = {
             "roll_no":           lambda r: f"Roll No: {_safe_text(r.get('roll_no'))}",
@@ -835,7 +747,6 @@ class MappingHandler:
         parts = [field_map[f](row) for f in order if f in requested and f in field_map]
         return "\n".join(parts) if parts else "Not found"
 
-# Resolve person from query (by name or roll number)
     @trace_function("MappingHandler._resolve_person")
     def _resolve_person(
         self,
@@ -844,7 +755,6 @@ class MappingHandler:
         direct_row: Optional[Dict[str, Any]] = None,
         direct_table: Optional[str] = None,
     ) -> str:
-        # Direct row shortcut (used by follow-up path)
         if direct_row is not None and direct_table is not None:
             row = dict(direct_row)
             requested = self._extract_requested_fields(question)
@@ -854,7 +764,6 @@ class MappingHandler:
                 self._attach_student_timetable(row, question)
             return self._build_response_from_fields(row, direct_table, requested or {"name"})
 
-        # Roll-number exact lookup
         roll_match = ROLL_RE.search(question.lower())
         if roll_match:
             roll = roll_match.group(1).upper()
@@ -869,7 +778,6 @@ class MappingHandler:
                         row, "student", requested or {"name", "roll_no", "division", "group_name"}
                     )
 
-        # Multi-name query: "roll no of Prachi and Kshiti"
         tokens = _name_tokens(question)
         if not tokens:
             return ""
@@ -877,8 +785,6 @@ class MappingHandler:
         multi_name_parts = re.split(r"\band\b|&", question, flags=re.IGNORECASE)
         if len(multi_name_parts) >= 2:
             name_toks_per_part = [_name_tokens(p) for p in multi_name_parts]
-            # Only treat as multi-name if EACH part has at least 1 meaningful token
-            # and no part is just a single short word (likely a surname fragment)
             valid_parts = all(
                 len(toks) >= 1 and any(len(t) >= 3 for t in toks)
                 for toks in name_toks_per_part
@@ -888,11 +794,9 @@ class MappingHandler:
                 all_results: List[str] = []
                 for part_toks in name_toks_per_part:
                     found = False
-                    # Try exact multi-token match first (e.g. "diya jitendra gor")
                     for tbl in ["student", "faculty"]:
                         for row in self.rag.rows_by_table.get(tbl, []):
                             name = str(row.get("name", "")).lower()
-                            # All tokens must appear in the name
                             if all(re.search(rf"\b{re.escape(t)}\b", name) for t in part_toks):
                                 r = dict(row)
                                 all_results.append(
@@ -902,7 +806,6 @@ class MappingHandler:
                                 break
                         if found:
                             break
-                    # If not found with all tokens, try with just the first token
                     if not found:
                         first_tok = part_toks[0]
                         if len(first_tok) >= 3:
@@ -923,7 +826,6 @@ class MappingHandler:
                 if all_results:
                     return "\n".join(f"{i}. {res}" for i, res in enumerate(all_results, 1))
 
-        # Single name search across student + faculty
         matches: List[Dict[str, Any]] = []
         for tbl in ["student", "faculty"]:
             for row in self.rag.rows_by_table.get(tbl, []):
@@ -948,7 +850,6 @@ class MappingHandler:
                 state.set_person(tbl, row)
             return self._build_response_from_fields(row, tbl, requested or {"name"})
 
-        # Multiple matches — ask for clarification
         if state:
             state.set_pending_matches(
                 [{"table": m["table"], "name": m["row"].get("name"),
@@ -972,7 +873,6 @@ class MappingHandler:
                 lines.append(f"{i}. {self._build_response_from_fields(row, tbl, fields)}")
             return "\n".join(lines)
 
-        # No specific field asked — show disambiguation list
         lines = ["I found multiple people with that name. Who are you asking about?"]
         for i, m in enumerate(matches, 1):
             name = _safe_text(m["row"].get("name"))
@@ -988,12 +888,10 @@ class MappingHandler:
         lines.append("\nPlease reply with the number, full name, or roll number.")
         return "\n".join(lines)
 
-# Try to answer structured queries (counts, lists, timetables, filters)
     @trace_function("MappingHandler._try_structured_answer")
     def _try_structured_answer(self, question: str, state=None) -> str:
         requested = self._extract_requested_fields(question)
 
-        # "faculty of <subject>" — deterministic subject-based faculty lookup
         subj_match = re.search(r"\b(?:faculty|teacher|professor)\s+(?:of|for)\s+(.+)", question.lower())
         if subj_match:
             subj_query = subj_match.group(1).strip()
@@ -1001,7 +899,6 @@ class MappingHandler:
             if out:
                 return out
 
-        # "list of faculty who teach in div X" — deterministic answer from timetable
         divs = _extract_division_keys(question)
         q = question.lower()
         if divs and re.search(r"\b(faculty|teacher|professor|staff)\b", q):
@@ -1046,7 +943,6 @@ class MappingHandler:
 
         return ""
 
-# Build list of faculty who teach a given subject
     def _build_faculty_by_subject_answer(self, subj_query: str) -> str:
         SUBJECT_ALIASES: Dict[str, str] = {
             "awt": "advanced web", "web": "advanced web",
@@ -1085,7 +981,6 @@ class MappingHandler:
             return ""
         return f"Faculty teaching {subj_query}:\n" + "\n".join(results)
 
-# Build list of faculty who teach in a given division
     def _build_faculty_by_division_answer(self, question: str, divs: Set[str]) -> str:
         faculty_rows = self.rag.rows_by_table.get("faculty", [])
         fac_map = {str(f.get("id")): f for f in faculty_rows}
@@ -1105,11 +1000,8 @@ class MappingHandler:
         if not results:
             return ""
         div_label = ", ".join("Division " + d.replace("div", "") for d in sorted(divs))
-
         return "Faculty teaching in " + div_label + ":\n" + "\n".join(results)
 
-
-# Build timetable answer for division/group queries
     def _build_timetable_answer(self, question: str) -> str:
         q = question.lower()
         if not re.search(r"\b(timetable|timebale|schedule|time table|lecture|lec)\b", q):
@@ -1145,7 +1037,6 @@ class MappingHandler:
         heading = "Timetable" + (f" for {' | '.join(hp)}" if hp else "")
         return f"{heading}:\n{_format_timetable_entries(matched)}"
 
-# Build filtered student list (e.g., students in div1 or group g2)
     def _build_filtered_students_answer(
         self,
         question: str,
@@ -1161,14 +1052,12 @@ class MappingHandler:
             return f"No students found for {label}."
         if requested is None:
             requested = self._extract_requested_fields(question)
-        # Always show name + roll_no for student lists; add other requested fields too
         fields = (requested | {"name", "roll_no"}) if requested else {"name", "roll_no", "division", "group_name"}
         lines = [f"Found {len(matched)} students in {label}:"]
         for i, row in enumerate(matched, 1):
             lines.append(f"{i}. {self._build_response_from_fields(row, 'student', fields)}")
         return "\n".join(lines)
 
-# Build count-based answers (e.g., total students, students in div1)
     def _build_count_answer(self, question: str) -> str:
         q = question.lower()
         if not re.search(r"\b(how many|count|total|number of)\b", q):
@@ -1179,7 +1068,6 @@ class MappingHandler:
         is_faculty = bool(re.search(r"\b(faculty|faculties|teacher|teachers|professor|professors)\b", q))
         is_division = bool(re.search(r"\b(division|divisions|div|divs|group|groups|batch|batches)\b", q))
 
-        # "how many divisions/groups are in CSE 3rd year" → count unique divisions
         if is_division and not is_student and not is_faculty:
             student_rows = self.rag.rows_by_table.get("student", [])
             unique_divs = {_normalize_key(r.get("division")) for r in student_rows if r.get("division")}
@@ -1203,12 +1091,10 @@ class MappingHandler:
             return f"There are {len(self.rag.rows_by_table.get('faculty', []))} faculty members in total."
         return ""
 
-# Build list of all entities (students or faculty)
     def _build_entity_list_answer(self, table: str, question: str = "") -> str:
         rows = self.rag.rows_by_table.get(table, [])
         if not rows:
             return f"No {table} records found."
-        # Filter faculty by title prefix (Dr., Ms., Mr.)
         if table == "faculty" and question:
             q = question.lower()
             title_filter: Optional[str] = None
@@ -1230,13 +1116,11 @@ class MappingHandler:
                 lines.append(f"{i}. {name}")
         return "\n".join(lines)
 
-# Check if query is simple "list all" type query
     def _is_generic_list_query(self, question: str, requested: Set[str], keywords: List[str]) -> bool:
         if requested:
             return False
         q = question.lower().strip()
         kw = "|".join(keywords)
-        # Also match "list of faculty dr" / "list of faculty ms" etc.
         patterns = [
             rf"^(all\s+)?({kw})(\s+list)?(\s+(dr|ms|mr)\.?)?$",
             rf"^(show|give|display)\s+(all\s+)?({kw})(\s+(dr|ms|mr)\.?)?$",
@@ -1244,7 +1128,6 @@ class MappingHandler:
         ]
         return any(re.fullmatch(p, q) for p in patterns)
 
-# Handle follow-up queries using conversation state
     @trace_function("MappingHandler._try_follow_up")
     def _try_follow_up(
         self,
@@ -1276,7 +1159,6 @@ class MappingHandler:
                 else:
                     return f"Please pick a number between 1 and {len(state.pending_matches)}."
 
-            # Check if user typed a name that matches one of the pending matches
             for pm in state.pending_matches:
                 pm_name = str(pm.get("name", "")).lower()
                 if any(tok in pm_name for tok in _name_tokens(question)):
@@ -1317,8 +1199,6 @@ class MappingHandler:
                     lines.append("Reply with a name or roll number.")
                     return "\n".join(lines)
 
-        # Check if this is a follow-up about the last person
-        # requested=empty means "show all fields" (e.g. "full detail", "all info")
         is_detail_query = bool(re.search(
             r"\b(full|complete|all|everything|detail|details|info|information|timetable|schedule|tt)\b",
             q
@@ -1339,13 +1219,12 @@ class MappingHandler:
 
         last_bot = _last_bot_message(history).lower()
         cues = ["what about", "and", "also", "its", "his", "her", "their", "him", "them", "same"]
-        # Short queries with field keywords and no new name = follow-up about last person
         is_follow_up = (
             "what info do you need" in last_bot
             or any(c in q for c in cues)
             or (len(q.split()) <= 6 and not re.search(r"\b(all|list|count|how many|total|division|group)\b", q))
             or bool(name_toks)
-            or (not name_toks and bool(requested))  # e.g. "give me full detail", "what is his email"
+            or (not name_toks and bool(requested))
         )
         if not is_follow_up:
             return ""
@@ -1357,11 +1236,8 @@ class MappingHandler:
             direct_table=state.last_table,
         )
 
-#  PART 2 — LLAMA HANDLER
-#  Handles: cross-table reasoning (subject → faculty, faculty → divisions,
-#           room queries, same-division check, first/last roll, subjects in div, etc.)
-#  Strategy: build a rich context from ALL relevant timetable + faculty + student
-#            records, then let Llama reason over them to produce the answer.
+
+#  LLAMA HANDLER  (OpenRouter only)
 class LlamaHandler:
     def __init__(self, rag: SQLDumpRAG) -> None:
         self.rag = rag
@@ -1372,10 +1248,10 @@ class LlamaHandler:
         question: str,
         history: List[Dict[str, str]],
         state: Optional[Any] = None,
-        trace_id: Optional[str] = None,           
+        trace_id: Optional[str] = None,
     ) -> Optional[str]:
         context = self._build_context(question, history, trace_id=trace_id)
-        answer = self._call_ollama(question, context, history, trace_id=trace_id)
+        answer = self._call_openrouter(question, context, history, trace_id=trace_id)
         return answer
 
     @trace_function("LlamaHandler._build_context")
@@ -1388,10 +1264,10 @@ class LlamaHandler:
         q = question.lower()
         sections: List[str] = []
 
-        faculty_rows  = self.rag.rows_by_table.get("faculty", [])
-        student_rows  = self.rag.rows_by_table.get("student", [])
-        tt_rows       = self.rag.rows_by_table.get("timetable", [])
-        fac_map       = {str(f.get("id")): f.get("name", "Unknown") for f in faculty_rows}
+        faculty_rows = self.rag.rows_by_table.get("faculty", [])
+        student_rows = self.rag.rows_by_table.get("student", [])
+        tt_rows      = self.rag.rows_by_table.get("timetable", [])
+        fac_map      = {str(f.get("id")): f.get("name", "Unknown") for f in faculty_rows}
 
         divs   = _extract_division_keys(question)
         groups = _extract_group_keys(question)
@@ -1403,7 +1279,6 @@ class LlamaHandler:
         }
         roll_matches = ROLL_RE.findall(q)
         name_tokens  = _name_tokens(question)
-        # Remove teaching/query keywords from name_tokens so they don't pollute faculty name search
         TEACHING_WORDS = {
             "teaches", "teach", "teaching", "taught", "takes", "take",
             "faculty", "professor", "teacher", "staff", "lecturer",
@@ -1412,32 +1287,18 @@ class LlamaHandler:
         }
         name_tokens = [t for t in name_tokens if t not in TEACHING_WORDS]
 
-        # Extract subject keyword from query (e.g. "ai" -> "artificial intelligence")
         SUBJECT_ALIASES: Dict[str, str] = {
-            "ai": "artificial intelligence",
-            "ml": "machine learning",
-            "cn": "computer network",
-            "os": "operating system",
-            "dbms": "database",
-            "toc": "theory of computation",
-            "ds": "data structure",
-            "awt": "advanced web",
-            "se": "software engineering",
-            "cc": "cloud computing",
-            "cns": "cryptography",
-            "crypto": "cryptography",
-            "cybersecurity": "cyber security",
-            "cyber security": "cyber security",
-            "network security": "network security",
-            "daa": "design and analysis",
-            "flat": "automata",
-            "oop": "object",
-            "java": "java",
-            "python": "python",
-            "web": "web",
-            "iot": "iot",
-            "cloud": "cloud",
-            "compiler": "compiler",
+            "ai": "artificial intelligence", "ml": "machine learning",
+            "cn": "computer network", "os": "operating system",
+            "dbms": "database", "toc": "theory of computation",
+            "ds": "data structure", "awt": "advanced web",
+            "se": "software engineering", "cc": "cloud computing",
+            "cns": "cryptography", "crypto": "cryptography",
+            "cybersecurity": "cyber security", "cyber security": "cyber security",
+            "network security": "network security", "daa": "design and analysis",
+            "flat": "automata", "oop": "object", "java": "java",
+            "python": "python", "web": "web", "iot": "iot",
+            "cloud": "cloud", "compiler": "compiler",
         }
         subj_filter: str = ""
         for alias, full in SUBJECT_ALIASES.items():
@@ -1453,19 +1314,13 @@ class LlamaHandler:
                 if kw in q:
                     subj_filter = kw
                     break
-        # If still no subject filter but query asks "who teaches X", extract X as subject
         if not subj_filter:
-            teach_match = re.search(
-                r"\b(?:teach|teaches|teaching|taught)\s+([a-z][a-z\s]{2,30})\b", q
-            )
+            teach_match = re.search(r"\b(?:teach|teaches|teaching|taught)\s+([a-z][a-z\s]{2,30})\b", q)
             if teach_match:
                 candidate = teach_match.group(1).strip()
-                # Only use if it's not a stopword-only phrase
                 if len(candidate) > 2 and candidate not in {"in", "at", "all", "the", "a"}:
                     subj_filter = candidate
 
-        # Detect cabin-based room query (e.g. "who is in F305" where F305 is a cabin)
-        # Normalize both the query room and the cabin value for comparison
         cabin_rooms: Set[str] = set()
         for fac in faculty_rows:
             cabin_norm = re.sub(r"[^A-Z0-9]", "", str(fac.get("cabin", "")).upper())
@@ -1477,7 +1332,6 @@ class LlamaHandler:
         is_free_slot_query = bool(re.search(r"free.slot|free.period|free.time|not.teaching|available", q))
         matched_students: List[Dict[str, Any]] = []
 
-        # For free slot of a student: find their division so we can get their timetable
         if is_free_slot_query and name_tokens and not divs:
             for s in student_rows:
                 s_name = s.get("name", "").lower()
@@ -1495,27 +1349,22 @@ class LlamaHandler:
             r"|lab|which subject|what subject|which div|first roll|last roll|who teach|teach in)",
             q
         ))
-        # "list of faculty who teach in div X" — force timetable lookup when div + faculty mentioned
         if divs and re.search(r"\b(faculty|teacher|professor|staff)\b", q):
             wants_timetable = True
-        wants_faculty   = bool(re.search(
+        wants_faculty = bool(re.search(
             r"(faculty|professor|teacher|staff|lecturer|cabin|email|phone|contact|"
             r"designation|research|qualification|phd|department)", q
         ))
-        wants_student   = bool(re.search(
+        wants_student = bool(re.search(
             r"(student|roll|roll.no|roll_no|division|group|batch|learner|list|how many|count"
             r"|same division|same div|same class|first roll|last roll)", q
         )) or bool(roll_matches) or (bool(name_tokens) and not wants_faculty and not wants_timetable)
-        wants_count     = bool(re.search(r"\b(how many|count|total|number of)\b", q))
+        wants_count = bool(re.search(r"\b(how many|count|total|number of)\b", q))
 
-
-
-        # Always include all faculty records when timetable is needed so fac_map resolves correctly
         fac_lines = ["=== FACULTY RECORDS ==="]
         if cabin_rooms:
             display_faculty = [f for f in faculty_rows if str(f.get("id", "")) in cabin_rooms]
         elif wants_timetable or subj_filter:
-            # Need all faculty so Llama can resolve faculty_id -> name from timetable rows
             display_faculty = faculty_rows
         elif name_tokens:
             display_faculty = [
@@ -1528,7 +1377,6 @@ class LlamaHandler:
             display_faculty = faculty_rows
 
         for f in display_faculty:
-            # When timetable/subject query, only include id+name to save context space
             if wants_timetable or subj_filter:
                 fac_lines.append(f"  ID:{f.get('id')} | Name: {_safe_text(f.get('name'))}")
             else:
@@ -1542,10 +1390,7 @@ class LlamaHandler:
                 )
         sections.append("\n".join(fac_lines))
 
-        # Include students for same-division checks or roll-based queries even if timetable is wanted
         is_same_div_query = bool(re.search(r"same.*(div|class|group)", q))
-        # For "who teaches <student_name>" queries, find the student's division first
-        # and use it to filter timetable rows
         student_div_filter: Set[str] = set()
         if name_tokens and re.search(r"\b(teach|teaches|teaching|taught|faculty|who teach)\b", q):
             for s in student_rows:
@@ -1554,7 +1399,6 @@ class LlamaHandler:
                     div_key = _normalize_key(s.get("division"))
                     if div_key:
                         student_div_filter.add(div_key)
-                        # Add student record to context
                         if not matched_students:
                             matched_students.append(s)
             if student_div_filter and not divs:
@@ -1564,14 +1408,12 @@ class LlamaHandler:
                           bool(re.search(r"first.roll|last.roll", q)) or bool(student_div_filter)
                           or bool(matched_students))
         if needs_students:
-            # For same-division queries fetch ALL students matching any name token
             if is_same_div_query:
                 for s in student_rows:
                     s_name = s.get("name", "").lower()
                     if any(tok in s_name for tok in name_tokens):
                         matched_students.append(s)
             elif student_div_filter:
-                # Already populated matched_students above for teach-student queries
                 pass
             else:
                 for s in student_rows:
@@ -1623,7 +1465,6 @@ class LlamaHandler:
 
         if wants_timetable or rooms or days or times:
             filtered_tt: List[Dict[str, Any]] = []
-            if DEBUG: print(f"[DEBUG] TT filter: divs={divs}, student_div_filter={student_div_filter}, total_rows={len(tt_rows)}")
             for row in tt_rows:
                 if divs and _normalize_key(row.get("division")) not in divs:
                     continue
@@ -1632,7 +1473,6 @@ class LlamaHandler:
                 if times and not _row_matches_time(row, times):
                     continue
                 if rooms and not cabin_rooms:
-                    # Only filter by classroom if not a cabin-room query
                     classroom = re.sub(r"[^A-Z0-9]", "", str(row.get("classroom", "")).upper())
                     if not any(r in classroom for r in rooms):
                         continue
@@ -1643,8 +1483,6 @@ class LlamaHandler:
                 filtered_tt.append(row)
 
             if name_tokens and not subj_filter:
-                # Only search faculty by name if name_tokens look like faculty names
-                # Skip if student_div_filter already set (means name_tokens are student names)
                 if not student_div_filter:
                     faculty_ids_for_name: Set[str] = set()
                     for f in faculty_rows:
@@ -1666,7 +1504,6 @@ class LlamaHandler:
             if not filtered_tt:
                 filtered_tt = tt_rows
 
-            # Cap timetable rows to stay within model token limit
             MAX_TT_ROWS = 279 if (not subj_filter and (is_free_slot_query or divs)) else (40 if not subj_filter else 279)
             if len(filtered_tt) > MAX_TT_ROWS:
                 if DEBUG: print(f"[Info] Timetable rows capped from {len(filtered_tt)} to {MAX_TT_ROWS}")
@@ -1687,7 +1524,6 @@ class LlamaHandler:
                 )
             sections.append("\n".join(tt_lines))
 
-        # For cabin-room queries, add a dedicated cabin section
         if cabin_rooms:
             cabin_lines = ["=== CABIN/OFFICE LOOKUP ==="]
             for fac in faculty_rows:
@@ -1713,7 +1549,7 @@ class LlamaHandler:
 
         return full
 
-    def _call_ollama(
+    def _call_openrouter(
         self,
         user_question: str,
         context_block: str,
@@ -1721,12 +1557,10 @@ class LlamaHandler:
         max_history_turns: int = 2,
         trace_id: Optional[str] = None,
     ) -> Optional[str]:
-        _model = OPENROUTER_MODEL if USE_OPENROUTER else OLLAMA_MODEL
-        _span  = tracker.span_llm(trace_id, user_question, len(context_block), _model)
-
+        _span = tracker.span_llm(trace_id, user_question, len(context_block), OPENROUTER_MODEL)
 
         messages = []
-        for turn in history[-(1 * 2):]:
+        for turn in history[-(max_history_turns * 2):]:
             role = "user" if turn["role"] == "user" else "assistant"
             content = turn["content"]
             if role == "assistant" and len(content) > 150:
@@ -1741,156 +1575,85 @@ class LlamaHandler:
             ),
         })
 
-        if DEBUG: print(f"[Debug] Sending {len(context_block)} characters of context to LLM.")
+        if DEBUG:
+            print(f"[Debug] Sending {len(context_block)} characters of context to LLM.")
 
-        
-        if USE_OPENROUTER:
-            import time
-            max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    client = OpenAI(
-                        api_key=OPENROUTER_API_KEY,
-                        base_url="https://openrouter.ai/api/v1",
-                    )
-                    print("Bot: ", end="", flush=True)
-                    completion = client.chat.completions.create(
-                        model=OPENROUTER_MODEL,
-                        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
-                        temperature=0.3,
-                        max_tokens=2000,
-                        stream=True,
-                    )
-                    collected = []
-                    for chunk in completion:
-                        token = chunk.choices[0].delta.content or ""
-                        if token:
-                            print(token, end="", flush=True)
-                            collected.append(token)
-                    print()
-                    result = "".join(collected).strip()
-                    tracker.end_span(_span, output={"response_length": len(result), "model": OPENROUTER_MODEL})
-
-                    return result if result else "I wasn't able to find an answer for that. Could you rephrase your question?"
-                except Exception as e:
-                    err_str = str(e)
-                    if "429" in err_str and attempt < max_retries - 1:
-                        wait = 30
-                        import re as _re
-                        m = _re.search(r"retry_after_seconds.*?(\d+\.?\d*)", err_str)
-                        if m:
-                            wait = int(float(m.group(1))) + 2
-                        print(f"\n[OpenRouter] Rate limited. Retrying in {wait}s... (attempt {attempt+1}/{max_retries})")
-                        time.sleep(wait)
-                        continue
-                    print(f"\n[OpenRouter] Error: {e}")
-                    tracker.end_span(_span, error=str(e))
-
-                    return f"An error occurred with OpenRouter API: {e}"
-
-        # Fallback to Ollama
-        payload = {
-            "model": OLLAMA_MODEL,
-            "messages": messages,
-            "system": SYSTEM_PROMPT,
-            "stream": True,
-            "options": {
-                "temperature": 0.3,
-                "num_predict": 2000,
-                "num_ctx": 10000,
-            },
-        }
-        try:
-            resp = requests.post(
-                f"{OLLAMA_URL}/api/chat", json=payload,
-                timeout=OLLAMA_TIMEOUT, stream=True
-            )
-            resp.raise_for_status()
-            print("Bot: ", end="", flush=True)
-            collected = []
-            for raw_line in resp.iter_lines():
-                if not raw_line:
-                    continue
-                try:
-                    chunk = json.loads(raw_line)
-                except Exception:
-                    continue
-                token = chunk.get("message", {}).get("content", "")
-                if token:
-                    print(token, end="", flush=True)
-                    collected.append(token)
-                if chunk.get("done"):
-                    stop_reason = chunk.get("done_reason", "unknown")
-                    if stop_reason == "length":
-                        print(f"\n[Warning] Response hit token limit (num_predict={payload['options']['num_predict']}). "
-                              "Consider increasing num_predict if answers are cut off.")
-                    break
-            print()
-            result = "".join(collected).strip()
-            tracker.end_span(_span, output={"response_length": len(result), "model": OLLAMA_MODEL})
-
-            return result if result else "I wasn't able to find an answer for that. Could you rephrase your question?"
-        except requests.exceptions.ConnectionError:
-            tracker.end_span(_span, error="ConnectionError")
-
-            print("[Ollama] Not reachable — is 'ollama serve' running?")
-            return "Ollama is not reachable. Please make sure 'ollama serve' is running."
-        except requests.exceptions.Timeout:
-            tracker.end_span(_span, error="Timeout")
-
-            print("[Ollama] Request timed out.")
-            return "The request timed out. The context might be too large — try a more specific question."
-        except Exception as e:
-            tracker.end_span(_span, error=str(e))
-
-            print(f"[Ollama] Error: {e}")
-            return f"An error occurred: {e}"
-
-    @staticmethod
-    def is_available() -> bool:
-        if USE_OPENROUTER:
+        max_retries = 3
+        for attempt in range(max_retries):
             try:
                 client = OpenAI(
                     api_key=OPENROUTER_API_KEY,
                     base_url="https://openrouter.ai/api/v1",
                 )
-                client.models.list()
-                return True
-            except Exception:
-                return False
+                print("Bot: ", end="", flush=True)
+                completion = client.chat.completions.create(
+                    model=OPENROUTER_MODEL,
+                    messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
+                    temperature=0.3,
+                    max_tokens=2000,
+                    stream=True,
+                )
+                collected = []
+                for chunk in completion:
+                    token = chunk.choices[0].delta.content or ""
+                    if token:
+                        print(token, end="", flush=True)
+                        collected.append(token)
+                print()
+                result = "".join(collected).strip()
+                tracker.end_span(_span, output={"response_length": len(result), "model": OPENROUTER_MODEL})
+                return result if result else "I wasn't able to find an answer for that. Could you rephrase your question?"
+
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str and attempt < max_retries - 1:
+                    wait = 30
+                    m = re.search(r"retry_after_seconds.*?(\d+\.?\d*)", err_str)
+                    if m:
+                        wait = int(float(m.group(1))) + 2
+                    print(f"\n[OpenRouter] Rate limited. Retrying in {wait}s... (attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait)
+                    continue
+                print(f"\n[OpenRouter] Error: {e}")
+                tracker.end_span(_span, error=str(e))
+                return f"An error occurred with OpenRouter API: {e}"
+
+    @staticmethod
+    def is_available() -> bool:
         try:
-            return requests.get(f"{OLLAMA_URL}/api/tags", timeout=3).status_code == 200
+            client = OpenAI(
+                api_key=OPENROUTER_API_KEY,
+                base_url="https://openrouter.ai/api/v1",
+            )
+            client.models.list()
+            return True
         except Exception:
             return False
+
 
 # Main chatbot function
 def main() -> None:
     print("=" * 60)
-    print("  ACADEMIC CHATBOT  —  (FAISS + MiniLM + llama3.2:3b)")
+    print("  ACADEMIC CHATBOT  —  (FAISS + MiniLM + OpenRouter)")
     print("  With LangFuse Observability")
     print("=" * 60)
 
-    # Load data
     print("\nLoading SQL dump...", end=" ", flush=True)
     rag = SQLDumpRAG(SQL_DUMP_PATH)
     rag.load()
     print(f"done.  Tables: {', '.join(sorted(rag.rows_by_table.keys()))}")
     print(f"       Records: {len(rag.documents)}")
 
-    # Initialise handlers
     mapping_handler = MappingHandler(rag)
     llama_handler   = LlamaHandler(rag)
 
-    use_llm = (not LOCAL_ONLY_MODE) and LlamaHandler.is_available()
+    use_llm = LlamaHandler.is_available()
     if use_llm:
-        if USE_OPENROUTER:
-            print(f"[OK] OpenRouter API ({OPENROUTER_MODEL}) reachable - LLM handler ON.")
-        else:
-            print(f"[OK] Ollama ({OLLAMA_MODEL}) reachable - LLM handler ON.")
+        print(f"[OK] OpenRouter API ({OPENROUTER_MODEL}) reachable — LLM handler ON.")
     else:
-        print("[!] LLM not reachable - Mapping handler only.")
+        print("[!] OpenRouter not reachable — Mapping handler only.")
 
-    tracker.start_session(use_llm=use_llm, use_openrouter=USE_OPENROUTER)
+    tracker.start_session(use_llm=use_llm, use_openrouter=True)
 
     print("\nChatbot ready. Type 'exit' to quit.")
     print("Hello! How can I help you today?\n")
@@ -1914,13 +1677,11 @@ def main() -> None:
         _append_history(history, "user", user_q)
         tid = tracker.start_turn(user_q, turn_count)
 
-
         # Exit
         if user_q.lower() in {"exit", "quit", "bye"}:
             bot_response = "Bye! Have a great day!"
             _append_history(history, "bot", bot_response)
             tracker.end_turn(tid, bot_response, "exit")
-
             print(f"Bot: {bot_response}")
             break
 
@@ -1929,7 +1690,6 @@ def main() -> None:
             bot_response = "Hi! How can I help you with student and faculty info?"
             _append_history(history, "bot", bot_response)
             tracker.end_turn(tid, bot_response, "greeting")
-
             print(f"Bot: {bot_response}\n")
             continue
 
@@ -1938,20 +1698,18 @@ def main() -> None:
             bot_response = "I'm designed only for academic queries about PDEU students and faculty."
             _append_history(history, "bot", bot_response)
             tracker.end_turn(tid, bot_response, "out_of_scope")
-
             print(f"Bot: {bot_response}\n")
             continue
 
         handler_used = "no_handler"
 
-        # Route: Llama for complex/cross-table queries
+        # Route: LLM for complex/cross-table queries
         if use_llm and is_llama_query(user_q):
-            print("[Answered by: LLAMA]")
-
+            print("[Answered by: OPENROUTER]")
             bot_response = llama_handler.handle(user_q, history[:-1], trace_id=tid)
             if not bot_response:
                 bot_response = "I couldn't generate an answer. Please try rephrasing."
-            handler_used = "llama_complex"
+            handler_used = "openrouter_complex"
             _append_history(history, "bot", bot_response)
             tracker.end_turn(tid, bot_response, handler_used)
             tracker.ask_and_record_feedback(tid)
@@ -1964,26 +1722,24 @@ def main() -> None:
             print("[Answered by: MAPPING]")
             bot_response = mapping_ans
             handler_used = "mapping"
-
             _append_history(history, "bot", bot_response)
             tracker.end_turn(tid, bot_response, handler_used)
             tracker.ask_and_record_feedback(tid)
             print(f"Bot: {bot_response}\n")
             continue
 
-        # Fallback: Llama on anything not caught by mapping
+        # Fallback: OpenRouter on anything not caught by mapping
         if use_llm:
-            print("[Answered by: LLAMA (fallback)]")
-
+            print("[Answered by: OPENROUTER (fallback)]")
             retrieved = rag.retrieve(user_q, top_k=TOP_K, trace_id=tid)
             if retrieved:
                 context      = _build_fallback_context(user_q, retrieved, rag)
-                bot_response = llama_handler._call_ollama(user_q, context, history[:-1], trace_id=tid)
+                bot_response = llama_handler._call_openrouter(user_q, context, history[:-1], trace_id=tid)
             else:
                 bot_response = None
             if not bot_response:
                 bot_response = "I could not find that information in the database."
-            handler_used = "llama_fallback"
+            handler_used = "openrouter_fallback"
         else:
             bot_response = "I could not find that information in the database."
 
@@ -1994,13 +1750,13 @@ def main() -> None:
 
     tracker.end_session(turn_count)
 
-# Build fallback context for LLaMA when query is not complex
+
+# Build fallback context for OpenRouter when query is not complex
 def _build_fallback_context(
     question: str,
     retrieved_docs: List[Dict[str, Any]],
     rag: SQLDumpRAG,
 ) -> str:
-    """Build context for generic Llama fallback (non-cross-table queries)."""
     if not retrieved_docs:
         return "No relevant records found in the database."
     timetable_asked = bool(re.search(
@@ -2039,6 +1795,6 @@ def _build_fallback_context(
         full_context = full_context[:MAX_CONTEXT_CHARS] + "\n...[truncated]"
     return full_context
 
-# Entry point of program
+
 if __name__ == "__main__":
     main()

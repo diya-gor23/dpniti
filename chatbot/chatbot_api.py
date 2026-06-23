@@ -3,9 +3,12 @@ from flask_cors import CORS
 from app import (
     SQLDumpRAG, MappingHandler, LlamaHandler, ConversationState,
     is_greeting, is_academic_query, is_llama_query, _name_tokens,
-    _append_history, _build_fallback_context, TOP_K, LOCAL_ONLY_MODE
+    _append_history, _build_fallback_context, TOP_K,
+    OPENROUTER_API_KEY, SYSTEM_PROMPT,
 )
 from langfuse_integration import tracker
+import time, re
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app)
@@ -15,7 +18,86 @@ rag = SQLDumpRAG("dpniti.sql")
 rag.load()
 mapping_handler = MappingHandler(rag)
 llama_handler   = LlamaHandler(rag)
-use_llm = (not LOCAL_ONLY_MODE) and LlamaHandler.is_available()
+use_llm = LlamaHandler.is_available()
+
+# Fallback model chain: try free first, then lighter free models
+OPENROUTER_MODELS = [
+    "openrouter/free",
+]
+
+def _call_openrouter_with_fallback(
+    user_question: str,
+    context_block: str,
+    history: list,
+    system_prompt: str,
+    max_history_turns: int = 2,
+) -> str:
+    """Call OpenRouter with automatic model fallback on 429 rate limit."""
+    messages = []
+    for turn in history[-(max_history_turns * 2):]:
+        role = "user" if turn["role"] == "user" else "assistant"
+        content = turn["content"]
+        if role == "assistant" and len(content) > 150:
+            content = content[:150] + "..."
+        messages.append({"role": role, "content": content})
+
+    messages.append({
+        "role": "user",
+        "content": (
+            f"DATABASE RECORDS (answer ONLY from these):\n{context_block}\n\n"
+            f"User question: {user_question}"
+        ),
+    })
+
+    client = OpenAI(
+        api_key=OPENROUTER_API_KEY,
+        base_url="https://openrouter.ai/api/v1",
+    )
+
+    last_error = None
+    for model in OPENROUTER_MODELS:
+        for attempt in range(2):  # 2 retries per model
+            try:
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "system", "content": system_prompt}] + messages,
+                    temperature=0.3,
+                    max_tokens=2000,
+                    stream=True,
+                    extra_headers={
+                        "HTTP-Referer": "https://dpniti.local",
+                        "X-Title": "DPNITI Campus Assist",
+                    },
+                )
+                collected = []
+                for chunk in completion:
+                    token = chunk.choices[0].delta.content or ""
+                    if token:
+                        collected.append(token)
+                result = "".join(collected).strip()
+                return result if result else "I wasn't able to find an answer. Could you rephrase?"
+
+            except Exception as e:
+                err_str = str(e)
+                last_error = err_str
+                if "429" in err_str:
+                    wait = 5
+                    m = re.search(r"retry_after_seconds.*?(\d+\.?\d*)", err_str)
+                    if m:
+                        wait = max(5, int(float(m.group(1))) + 2)
+                    if attempt == 0 and wait <= 35:
+                        print(f"[OpenRouter] 429 on {model}. Waiting {wait}s...")
+                        time.sleep(wait)
+                        continue
+                    else:
+                        print(f"[OpenRouter] 429 on {model}. Switching model...")
+                        break
+                else:
+                    print(f"[OpenRouter] Error on {model}: {e}")
+                    break  # Non-rate-limit error → try next model
+
+    return f"The AI service is temporarily overloaded. Please try again in a moment. (Last error: {last_error})"
+
 
 # Per-session state (keyed by session_id)
 sessions: dict = {}
@@ -50,21 +132,32 @@ def chat():
     ) as trace:
         if user_q.lower() in {"exit", "quit", "bye"}:
             reply = "Bye! Have a great day!"
+
         elif is_greeting(user_q):
             reply = "Hi! How can I help you with student and faculty info?"
+
         elif not is_academic_query(user_q) and not _name_tokens(user_q):
             reply = "I'm designed only for academic queries about PDEU students and faculty."
+
         elif use_llm and is_llama_query(user_q):
-            reply = llama_handler.handle(user_q, history[:-1]) or "I couldn't generate an answer. Please try rephrasing."
+            # Complex / cross-table → use LlamaHandler (which calls OpenRouter internally)
+            context = llama_handler._build_context(question=user_q, history=history[:-1])
+            reply = _call_openrouter_with_fallback(
+                user_q, context, history[:-1], system_prompt=SYSTEM_PROMPT
+            ) or "I couldn't generate an answer. Please try rephrasing."
+
         else:
             mapping_ans = mapping_handler.handle(user_q, state, history[:-1])
             if mapping_ans:
                 reply = mapping_ans
             elif use_llm:
+                # Fallback: retrieve relevant docs → LLM
                 retrieved = rag.retrieve(user_q, top_k=TOP_K)
                 if retrieved:
                     context = _build_fallback_context(user_q, retrieved, rag)
-                    reply = llama_handler._call_ollama(user_q, context, history[:-1]) or "I could not find that information."
+                    reply = _call_openrouter_with_fallback(
+                        user_q, context, history[:-1], system_prompt=SYSTEM_PROMPT
+                    ) or "I could not find that information."
                 else:
                     reply = "I could not find that information in the database."
             else:

@@ -15,7 +15,7 @@
         body.appendChild(typing);
         body.scrollTop = body.scrollHeight;
         try {
-            const res  = await fetch(API_URL + '/chat', {
+            const res  = await fetch(PYTHON_API_URL + '/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: userText, session_id: SESSION_ID })
@@ -149,7 +149,7 @@
         }
 
         resetBtn.addEventListener('click', async function () {
-            await fetch(API_URL + '/reset', {
+            await fetch(PYTHON_API_URL + '/reset', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: SESSION_ID })

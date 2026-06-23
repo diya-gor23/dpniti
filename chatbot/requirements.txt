@@ -1,0 +1,10 @@
+flask
+flask-cors
+sentence-transformers
+faiss-cpu
+requests
+langfuse>=2.0,<3.0
+mysql-connector-python
+python-dotenv
+numpy
+openai
