@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: dpniti-full-stack
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: AUTH_DATABASE_URL
+        sync: false
+      - key: ACADEMIC_DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: PG_POOL_SIZE
+        value: "1"
+      - key: PG_MAX_OVERFLOW
+        value: "0"
+      - key: LANGFUSE_ENABLED
+        value: "true"
+      - key: LANGFUSE_HOST
+        value: https://cloud.langfuse.com
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

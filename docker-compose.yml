@@ -20,6 +20,28 @@ services:
       timeout: 20s
       retries: 10
 
+
+  # ─── PostgreSQL academic-data database (separate from MySQL auth) ───
+  academic-db:
+    image: postgres:16-alpine
+    container_name: dpniti_academic_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dpniti_academic
+      POSTGRES_USER: dpniti_academic_user
+      POSTGRES_PASSWORD: ${ACADEMIC_DB_PASSWORD:?Set ACADEMIC_DB_PASSWORD in the root .env}
+    volumes:
+      - academic_db_data:/var/lib/postgresql/data
+      # Creates the academic tables and imports the chatbot data on first start.
+      - ./chatbot/postgres_init.sql:/docker-entrypoint-initdb.d/01_academic.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dpniti_academic_user -d dpniti_academic"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "127.0.0.1:5433:5432"
+
   # ─── Node.js Backend ──────────────────────────────────
   backend:
     build: ./backend
@@ -47,10 +69,9 @@ services:
     container_name: dpniti_chatbot
     restart: unless-stopped
     environment:
-      DB_HOST: db
-      DB_USER: dpniti_user
-      DB_PASSWORD: dpniti_pass
-      DB_DATABASE: dpniti
+      ACADEMIC_DATABASE_URL: postgresql+psycopg://dpniti_academic_user:${ACADEMIC_DB_PASSWORD}@academic-db:5432/dpniti_academic
+      PG_POOL_SIZE: ${PG_POOL_SIZE:-5}
+      PG_MAX_OVERFLOW: ${PG_MAX_OVERFLOW:-5}
       LANGFUSE_ENABLED: "true"
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
@@ -60,6 +81,8 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}   # ADDED: exact origin(s) allowed to send credentials
     depends_on:
       db:
+        condition: service_healthy
+      academic-db:
         condition: service_healthy
     ports:
       - "5001:5001"
@@ -80,3 +103,4 @@ services:
 
 volumes:
   db_data:
+  academic_db_data:

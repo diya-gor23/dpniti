@@ -1,0 +1,13 @@
+services:
+  academic-db:
+    ports: !override []
+
+  backend:
+    ports: !override []
+
+  chatbot:
+    ports: !override []
+
+  frontend:
+    ports: !override
+      - "127.0.0.1:8080:80"

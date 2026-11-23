@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profile - 2027 Batch</title>
     <link rel="stylesheet" href="dpniti-widget.css">
+    <link rel="stylesheet" href="dpniti-edit.css">
     <style>
         * {
             margin: 0;
@@ -201,7 +202,6 @@
     </style>
 </head>
 <body>
-    <script src="auth-guard.js"></script>
     <main class="profile-shell">
         <section class="profile-header">
             <h1>Profile</h1>
@@ -242,10 +242,11 @@
         </section>
     </main>
     <script src="config.js"></script>
+    <script src="auth-guard.js"></script>
     <script>
         const name = localStorage.getItem('userName') || 'User';
         const email = localStorage.getItem('userEmail') || 'user@example.com';
-        const isLoggedIn = Boolean(localStorage.getItem('authToken'));
+        const isLoggedIn = Boolean(localStorage.getItem('userName'));
 
         document.getElementById('profileName').textContent = name;
         document.getElementById('profileEmail').textContent = email;
@@ -258,11 +259,21 @@
             missingInfo.hidden = false;
         }
 
+        window.addEventListener('dpniti-auth-updated', () => {
+            const verifiedEmail = localStorage.getItem('userEmail');
+            if (verifiedEmail) {
+                document.getElementById('profileEmail').textContent = verifiedEmail;
+                document.getElementById('detailEmail').textContent = verifiedEmail;
+                missingInfo.hidden = true;
+            }
+        });
+
         document.getElementById('logoutBtn').addEventListener('click', () => {
             localStorage.clear();
             window.location.replace('login/index.html');
         });
     </script>
     <script src="dpniti-widget.js"></script>
+    <script src="dpniti-edit.js"></script>
 </body>
 </html>

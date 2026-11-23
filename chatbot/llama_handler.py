@@ -11,8 +11,7 @@ from mcp.client.stdio import stdio_client
 
 from langfuse_integration import tracker, trace_function
 
-from sql_dump import (
-    SQLDumpRAG,
+from academic_helpers import (
     SYSTEM_PROMPT,
     DEBUG,
     OPENROUTER_API_KEY,
@@ -67,7 +66,7 @@ def _tool_to_openai_schema(tool: Any) -> Dict[str, Any]:
 
 
 def _history_to_messages(
-    history: List[Dict[str, str]], max_turns: int = 2
+    history: List[Dict[str, str]], max_turns: int = 4
 ) -> List[Dict[str, str]]:
     messages = []
     for turn in history[-(max_turns * 2):]:
@@ -80,8 +79,7 @@ def _history_to_messages(
 
 
 class LlamaHandler:
-    def __init__(self, rag: SQLDumpRAG) -> None:
-        self.rag = rag
+    def __init__(self) -> None:
         self._session = None
         self._tools_cache = None
         self._lock = asyncio.Lock()
@@ -144,12 +142,14 @@ class LlamaHandler:
         trace_id: Optional[str] = None,
         role: str = "admin",
         allowed_sem: Optional[int] = None,
+        user_name: Optional[str] = None,
     ) -> Optional[str]:
         """Use MCP tools for cross-table reasoning with chained calls.
         Async to preserve the persistent MCP session across requests."""
         try:
             return await self._handle_with_tools(
-                question, history, trace_id, role=role, allowed_sem=allowed_sem
+                question, history, trace_id, role=role, allowed_sem=allowed_sem,
+                user_name=user_name,
             )
         except Exception as e:
             if DEBUG:
@@ -168,6 +168,7 @@ class LlamaHandler:
         max_tool_rounds: int = 10,
         role: str = "admin",
         allowed_sem: Optional[int] = None,
+        user_name: Optional[str] = None,
     ) -> Optional[str]:
         _span = tracker.span_llm(trace_id, question, 0, OPENROUTER_MODEL)
 
@@ -176,6 +177,17 @@ class LlamaHandler:
         messages = _history_to_messages(history) + [
             {"role": "user", "content": question}
         ]
+        identity_message = []
+        if user_name and user_name.strip():
+            identity_message = [{
+                "role": "system",
+                "content": (
+                    f'The authenticated user is "{user_name.strip()}". '
+                    'In the current question and conversation, first-person '
+                    'references such as I, me, my, mine, and myself refer to '
+                    'that user. Resolve follow-up questions using this identity.'
+                ),
+            }]
         client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=LOCAL_LLM_BASE_URL)
 
         total_prompt_tokens = 0
@@ -186,7 +198,7 @@ class LlamaHandler:
                 try:
                     resp = client.chat.completions.create(
                         model=model,
-                        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + messages,
+                        messages=[{"role": "system", "content": SYSTEM_PROMPT}] + identity_message + messages,
                         tools=openai_tools,
                         temperature=0.2,
                         # 1200 was cutting off any answer that had to list many

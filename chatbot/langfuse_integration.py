@@ -255,6 +255,23 @@ class LangfuseTracker:
         """Dummy to avoid blocking the CLI when run."""
         pass
 
+    def record_feedback(self, trace_id: str, rating: str) -> None:
+        """Record user feedback against the trace for one generated answer."""
+        if not self.enabled or not self.client:
+            return
+        try:
+            self.client.create_score(
+                trace_id=trace_id,
+                name="user-feedback",
+                value=rating,
+                data_type="CATEGORICAL",
+                comment=rating,
+            )
+            self.client.flush()
+            print(f"[Langfuse] Recorded {rating} feedback for trace {trace_id}")
+        except Exception as exc:
+            print(f"[Langfuse Error] Failed to record feedback: {exc}")
+
 
 # Instantiate the singleton tracker
 tracker = LangfuseTracker()
@@ -285,7 +302,7 @@ def trace_function(name: Optional[str] = None):
             if args:
                 first_arg = args[0]
                 if len(args) > 1 and hasattr(first_arg, "__class__") and first_arg.__class__.__name__ in (
-                    "MappingHandler", "LlamaHandler", "SQLDumpRAG"
+                    "MappingHandler", "LlamaHandler"
                 ):
                     input_val = args[1]
                 else:

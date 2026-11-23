@@ -1,0 +1,59 @@
+services:
+  db:
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+
+  academic-db:
+    environment:
+      POSTGRES_PASSWORD: ${ACADEMIC_DB_PASSWORD:?Set ACADEMIC_DB_PASSWORD in .env}
+    ports: !override []
+
+  backend:
+    environment:
+      DB_HOST: db
+      DB_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      DB_DATABASE: auth_db
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      FRONTEND_ORIGIN: https://${APP_DOMAIN:?Set APP_DOMAIN in .env}
+      COOKIE_SECURE: "true"
+    ports: !override []
+
+  chatbot:
+    environment:
+      ACADEMIC_DATABASE_URL: postgresql+psycopg://dpniti_academic_user:${ACADEMIC_DB_PASSWORD:?Set ACADEMIC_DB_PASSWORD in .env}@academic-db:5432/dpniti_academic
+      LANGFUSE_ENABLED: "true"
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:?Set LANGFUSE_PUBLIC_KEY in .env}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:?Set LANGFUSE_SECRET_KEY in .env}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-https://cloud.langfuse.com}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      FRONTEND_ORIGIN: https://${APP_DOMAIN:?Set APP_DOMAIN in .env}
+    ports: !override []
+
+  frontend:
+    ports: !override []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile.oracle:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
+  caddy_config:

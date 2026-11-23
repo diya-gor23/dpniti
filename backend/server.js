@@ -6,10 +6,13 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql2/promise');
+const { Pool: PostgresPool } = require('pg');
+const crypto = require('crypto');
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
 const jwtSecret = process.env.JWT_SECRET;
+const authDatabaseUrl = process.env.AUTH_DATABASE_URL;
 const allowedOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost')
   .split(',')
   .map((o) => o.trim())
@@ -19,18 +22,55 @@ const useSecureCookie = String(process.env.COOKIE_SECURE || 'false').toLowerCase
 if (!jwtSecret) {
   throw new Error('JWT_SECRET must be configured');
 }
-if (!process.env.DB_PASSWORD) {
-  throw new Error('DB_PASSWORD must be configured');
+if (!authDatabaseUrl && !process.env.DB_PASSWORD) {
+  throw new Error('Set AUTH_DATABASE_URL or DB_PASSWORD');
 }
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_DATABASE || 'auth_db',
-  waitForConnections: true,
-  connectionLimit: 10,
-});
+const mysqlPool = authDatabaseUrl
+  ? null
+  : mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE || 'auth_db',
+    waitForConnections: true,
+    connectionLimit: 10,
+  });
+const postgresPool = authDatabaseUrl
+  ? new PostgresPool({ connectionString: authDatabaseUrl, max: 5 })
+  : null;
+
+async function findUserByUsername(username) {
+  if (postgresPool) {
+    const { rows } = await postgresPool.query(
+      'SELECT id, username, password_hash, display_name, role, semester, active FROM users WHERE username = $1 LIMIT 1',
+      [username]
+    );
+    return rows[0];
+  }
+
+  const [rows] = await mysqlPool.execute(
+    'SELECT id, username, password_hash, display_name, role, semester, active FROM users WHERE username = ? LIMIT 1',
+    [username]
+  );
+  return rows[0];
+}
+
+async function findUserById(id) {
+  if (postgresPool) {
+    const { rows } = await postgresPool.query(
+      'SELECT id, password_hash, active FROM users WHERE id = $1 LIMIT 1',
+      [id]
+    );
+    return rows[0];
+  }
+
+  const [rows] = await mysqlPool.execute(
+    'SELECT id, password_hash, active FROM users WHERE id = ? LIMIT 1',
+    [id]
+  );
+  return rows[0];
+}
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
@@ -95,11 +135,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.execute(
-      'SELECT id, username, password_hash, display_name, role, semester, active FROM users WHERE username = ? LIMIT 1',
-      [username]
-    );
-    const user = rows[0];
+    const user = await findUserByUsername(username);
     const valid = user && user.active && await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
@@ -171,6 +207,62 @@ app.get('/api/auth/verify', (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie(COOKIE_NAME, { path: '/' });
   return res.json({ success: true });
+});
+
+// Password re-check for faculty data edits. Returns a 2-minute, single-use token.
+const confirmAttempts = new Map();
+const CONFIRM_WINDOW_MS = 60 * 1000;
+const CONFIRM_MAX_ATTEMPTS = 5;
+
+app.post('/api/auth/confirm-password', async (req, res) => {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) return res.status(401).json({ success: false, message: 'Not logged in.' });
+
+  let claims;
+  try {
+    claims = jwt.verify(token, jwtSecret);
+  } catch {
+    return res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+  }
+  if (claims.role !== 'faculty') {
+    return res.status(403).json({ success: false, message: 'Only faculty can edit data.' });
+  }
+
+  const userId = Number(claims.sub);
+  if (!Number.isSafeInteger(userId) || userId <= 0) {
+    return res.status(401).json({ success: false, message: 'Invalid session.' });
+  }
+
+  const now = Date.now();
+  const entry = confirmAttempts.get(claims.sub);
+  if (entry && now - entry.firstAttemptAt <= CONFIRM_WINDOW_MS) {
+    if (entry.count >= CONFIRM_MAX_ATTEMPTS) {
+      return res.status(429).json({ success: false, message: 'Too many attempts. Try again in a minute.' });
+    }
+    entry.count += 1;
+  } else {
+    confirmAttempts.set(claims.sub, { count: 1, firstAttemptAt: now });
+  }
+
+  const password = String(req.body?.password || '');
+  if (!password) return res.status(400).json({ success: false, message: 'Password is required.' });
+
+  try {
+    const user = await findUserById(userId);
+    const ok = user && user.active && await bcrypt.compare(password, user.password_hash);
+    if (!ok) return res.status(401).json({ success: false, message: 'Incorrect password.' });
+
+    confirmAttempts.delete(claims.sub);
+    const editToken = jwt.sign(
+      { sub: String(user.id), purpose: 'academic-edit', jti: crypto.randomUUID() },
+      jwtSecret,
+      { expiresIn: '2m' }
+    );
+    return res.json({ success: true, editToken });
+  } catch (error) {
+    console.error('Password confirm failed:', error.message);
+    return res.status(500).json({ success: false, message: 'Authentication service is unavailable.' });
+  }
 });
 
 app.listen(port, () => console.log(`Auth API running on http://localhost:${port}`));

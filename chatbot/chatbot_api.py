@@ -1,13 +1,15 @@
-from fastapi import FastAPI, Header, HTTPException, Cookie
+from fastapi import FastAPI, Header, HTTPException, Cookie, UploadFile, File
+from google import genai
+from google.genai import types
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
-from app import (
-    SQLDumpRAG, LlamaHandler, ConversationState,
-    is_greeting, is_academic_query, _name_tokens,
-    _append_history,
+from academic_helpers import (
+    ConversationState, is_greeting, is_academic_query,
+    _name_tokens, _append_history,
 )
+from llama_handler import LlamaHandler
 from langfuse_integration import tracker
 import re
 from datetime import datetime, timedelta
@@ -18,10 +20,7 @@ import jwt
 
 app = FastAPI()
 
-# CORS: must list exact origin(s) — a wildcard ("*") cannot be combined with
-# allow_credentials=True, and we need credentials on so the browser will
-# actually send the httpOnly auth cookie to this API.
-# Comma-separated list, e.g. FRONTEND_ORIGIN="http://localhost,http://localhost:80"
+
 _allowed_origins = [
     o.strip() for o in os.environ.get("FRONTEND_ORIGIN", "http://localhost").split(",") if o.strip()
 ]
@@ -32,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from faculty_edit import router as faculty_edit_router
+app.include_router(faculty_edit_router)
 
 
 def _verify_token(token: str) -> dict:
@@ -55,15 +57,14 @@ def _authenticate(authorization: Optional[str], auth_cookie: Optional[str]) -> d
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid or expired authentication token.")
 
-# Load once at startup
-rag = SQLDumpRAG("db7.sql")
-rag.load()
+# Academic records are queried live through MCP tools backed by PostgreSQL.
 # Single shared instance for the whole process lifetime — this is what makes
 # the persistent MCP session in LlamaHandler actually pay off. Do NOT
 # instantiate a new LlamaHandler per-request, or every request pays the
 # subprocess-spawn + initialize() cost again.
-llama_handler   = LlamaHandler(rag)
+llama_handler   = LlamaHandler()
 use_llm = LlamaHandler.is_available()
+genai_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 # ── "my lecture" / "right now" personalization ─────────────────────────────
 IST = ZoneInfo("Asia/Kolkata")
@@ -71,10 +72,10 @@ IST = ZoneInfo("Asia/Kolkata")
 _DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 _RELATIVE_DAY_RE = re.compile(r"\b(today|tonight|tomorrow|yesterday)\b", re.IGNORECASE)
 _NOW_RE = re.compile(r"\b(right now|just now|at the moment|currently|now)\b", re.IGNORECASE)
-_FIRST_PERSON_RE = re.compile(r"\b(my|mine)\b", re.IGNORECASE)
+_FIRST_PERSON_RE = re.compile(r"\b(my|mine|me|i|myself)\b", re.IGNORECASE)
+_POSSESSIVE_FIRST_PERSON_RE = re.compile(r"\b(my|mine)\b", re.IGNORECASE)
 
-# ── NEW: semester-mention detector, used for the role/batch access guard ───
-# Matches "sem 7", "semester 7", "7th sem", "sem-5", etc.
+
 _SEM_RE = re.compile(
     r"\bsem(?:ester)?\.?\s*-?\s*(\d)\b|\b(\d)(?:st|nd|rd|th)\s*sem",
     re.IGNORECASE,
@@ -118,7 +119,12 @@ def _personalize_query(question: str, user_name: str | None) -> str:
             q = f"{q} {now.strftime('%A')}"
 
     if user_name and user_name.strip():
-        q = _FIRST_PERSON_RE.sub(user_name.strip(), q)
+        identity = user_name.strip()
+        # Keep subject/object pronouns natural for the LLM, while still
+        # making ownership queries such as "my timetable" searchable.
+        q = _POSSESSIVE_FIRST_PERSON_RE.sub(identity, q)
+        if _FIRST_PERSON_RE.search(question):
+            q = f'{q} [The first-person speaker is {identity}; "I", "me", "my", "mine", and "myself" refer to this user.]'
 
     return q
 
@@ -128,24 +134,48 @@ sessions: dict = {}
 
 def get_session(session_id: str):
     if session_id not in sessions:
-        sessions[session_id] = {"history": [], "state": ConversationState()}
+        sessions[session_id] = {
+            "history": [],
+            "state": ConversationState(),
+            "cancelled_requests": set(),
+        }
     return sessions[session_id]
+
+
+def _remove_request_history(history: list, request_id: str) -> None:
+    history[:] = [
+        item for item in history
+        if item.get("request_id") != request_id
+    ]
 
 
 # ── Request/response schemas ────────────────────────────────────────────────
 class ChatRequest(BaseModel):
     message: Optional[str] = None
     session_id: str = "default"
+    request_id: Optional[str] = None
     user_id: Optional[str] = None
     user_name: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     reply: str
+    trace_id: Optional[str] = None
 
 
 class ResetRequest(BaseModel):
     session_id: str = "default"
+
+class CancelRequest(BaseModel):
+    session_id: str = "default"
+    request_id: str
+
+class FeedbackRequest(BaseModel):
+    trace_id: str
+    rating: str
+
+class TranscribeResponse(BaseModel):
+    text: str
 
 
 class ResetResponse(BaseModel):
@@ -184,9 +214,11 @@ async def chat(
     sess    = get_session(session_id)
     history = sess["history"]
     state   = sess["state"]
+    request_id = body.request_id or ""
 
-    _append_history(history, "user", resolved_q)
+    history.append({"role": "user", "content": resolved_q, "request_id": request_id})
 
+    langfuse_trace_id = None
     with tracker.trace(
         name="handle-chatbot-message",
         input_str=resolved_q,
@@ -194,6 +226,11 @@ async def chat(
         user_id=user_id,
         tags=["qa-chatbot"]
     ) as trace:
+        if trace is not None:
+            langfuse_trace_id = (
+                getattr(trace, "trace_id", None)
+                or getattr(trace, "id", None)
+            )
         if user_q.lower() in {"exit", "quit", "bye"}:
             reply = "Bye! Have a great day!"
 
@@ -208,10 +245,7 @@ async def chat(
         ):
             reply = "I'm designed only for academic queries about PDEU students and faculty."
 
-        # ── NEW: role/batch/semester guard ──────────────────────────────
-        # Students can only ask about their own batch's semester. Faculty
-        # info is never restricted. Faculty/admin accounts have
-        # allowed_sem = None, so this branch never fires for them.
+       
         elif (
             role == "student"
             and allowed_sem is not None
@@ -224,26 +258,58 @@ async def chat(
             )
 
         elif use_llm:
-            # Mapping handler routing disabled — every query now goes through
-            # LlamaHandler, which resolves it via MCP tool calls
-            # (get_teaching_assignments, get_timetable, get_free_slots, lookup_person).
-            #
-            # `handle()` is now a coroutine (see llama_handler.py) so the
-            # persistent MCP session it opens on first use stays alive across
-            # requests instead of being torn down and rebuilt every time.
+            
             reply = await llama_handler.handle(
                 resolved_q, history[:-1], trace_id=None,
-                role=role, allowed_sem=allowed_sem,
+                role=role, allowed_sem=allowed_sem, user_name=user_name,
             ) or "I couldn't generate an answer. Please try rephrasing."
 
         else:
             reply = "I could not find that information in the database."
 
+        if request_id in sess["cancelled_requests"]:
+            _remove_request_history(history, request_id)
+            return ChatResponse(reply="", trace_id=langfuse_trace_id)
+
         if trace:
             trace.update(output=reply)
 
-    _append_history(history, "bot", reply)
-    return ChatResponse(reply=reply)
+    if request_id in sess["cancelled_requests"]:
+        _remove_request_history(history, request_id)
+        return ChatResponse(reply="", trace_id=langfuse_trace_id)
+
+    history.append({"role": "bot", "content": reply, "request_id": request_id})
+    return ChatResponse(reply=reply, trace_id=langfuse_trace_id)
+
+
+@app.post("/feedback", response_model=ResetResponse)
+def feedback(
+    body: FeedbackRequest,
+    authorization: Optional[str] = Header(default=None),
+    authToken: Optional[str] = Cookie(default=None),
+):
+    _authenticate(authorization, authToken)
+    rating = body.rating.strip().lower()
+    if rating not in {"good", "bad"}:
+        raise HTTPException(status_code=400, detail="Rating must be 'good' or 'bad'.")
+    if not body.trace_id.strip():
+        raise HTTPException(status_code=400, detail="A trace_id is required.")
+    tracker.record_feedback(body.trace_id, rating)
+    return ResetResponse(status="recorded")
+
+
+@app.post("/cancel", response_model=ResetResponse)
+def cancel(
+    body: CancelRequest,
+    authorization: Optional[str] = Header(default=None),
+    authToken: Optional[str] = Cookie(default=None),
+):
+    _authenticate(authorization, authToken)
+    session_id = body.session_id or "default"
+    sess = get_session(session_id)
+    sess["cancelled_requests"].add(body.request_id)
+    _remove_request_history(sess["history"], body.request_id)
+    return ResetResponse(status="cancelled")
 
 
 @app.post("/reset", response_model=ResetResponse)
@@ -259,6 +325,25 @@ def reset(
     if session_id in sessions:
         del sessions[session_id]
     return ResetResponse(status="reset")
+
+@app.post("/transcribe", response_model=TranscribeResponse)
+async def transcribe(
+    audio: UploadFile = File(...),
+    authorization: Optional[str] = Header(default=None),
+    authToken: Optional[str] = Cookie(default=None),
+):
+    _authenticate(authorization, authToken)
+    audio_bytes = await audio.read()
+
+    resp = genai_client.models.generate_content(
+        model="gemini-3.5-flash-lite",
+        contents=[
+            "Transcribe the following speech segment in its original language. "
+            "Only output the transcription, with no extra commentary.",
+            types.Part.from_bytes(data=audio_bytes, mime_type="audio/webm"),
+        ],
+    )
+    return TranscribeResponse(text=resp.text.strip())
 
 
 @app.on_event("shutdown")

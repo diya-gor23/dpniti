@@ -12,8 +12,7 @@ except ModuleNotFoundError:
 
 _real_stdout = sys.stdout
 with contextlib.redirect_stdout(sys.stderr):
-    from sql_dump import (
-    SQLDumpRAG,
+    from academic_helpers import (
     ROLL_RE,
     _safe_text,
     _name_tokens,
@@ -31,10 +30,10 @@ with contextlib.redirect_stdout(sys.stderr):
 
 mcp = MCPServer("pdeu-campus-data")
 
-# Loaded once at process start (this runs as its own subprocess).
-rag = SQLDumpRAG("db7.sql")
-with contextlib.redirect_stdout(sys.stderr):
-    rag.load()
+# Academic data is queried from PostgreSQL. Authentication remains in the
+# separate Node/MySQL service. The MCP subprocess shares the same PG URL.
+from database import fetch_rows
+
 
 
 SUBJECT_CODE_NAMES: Dict[str, str] = {
@@ -155,23 +154,28 @@ def _resolve_subject_code(text: str) -> Optional[str]:
 # ── shared helpers ───────────────────────────────────────────────────────
 
 def _faculty_rows() -> List[Dict[str, Any]]:
-    return rag.rows_by_table.get("faculty", [])
+    return fetch_rows("faculty")
 
 
 def _student_rows(access_role: str = "admin", allowed_sem: Optional[int] = None) -> List[Dict[str, Any]]:
-    rows = rag.rows_by_table.get("student", [])
+    # Apply the semester restriction in PostgreSQL as well as in the API guard.
     if access_role == "student":
-        return [row for row in rows if int(row.get("semester", 0)) == int(allowed_sem or 0)]
-    return rows
+        if allowed_sem not in {5, 7}:
+            return []
+        return fetch_rows("student", semester=int(allowed_sem))
+    return fetch_rows("student")
 
 
 def _timetable_rows(
     access_role: str = "admin", allowed_sem: Optional[int] = None, faculty_query: bool = False
 ) -> List[Dict[str, Any]]:
-    rows = rag.rows_by_table.get("timetable", [])
+    # Student timetable queries are semester-scoped in the database. Faculty
+    # queries can inspect faculty scheduling without exposing student records.
     if access_role == "student" and not faculty_query:
-        return [row for row in rows if int(row.get("semester", 0)) == int(allowed_sem or 0)]
-    return rows
+        if allowed_sem not in {5, 7}:
+            return []
+        return fetch_rows("timetable", semester=int(allowed_sem))
+    return fetch_rows("timetable")
 
 
 def _faculty_name_map() -> Dict[str, str]:

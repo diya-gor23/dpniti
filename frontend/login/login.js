@@ -23,6 +23,7 @@ form.addEventListener('submit', async (event) => {
     // server — it is never touched by JavaScript. Only non-sensitive
     // display fields go in localStorage, purely for the UI.
     localStorage.setItem('userName', data.user.name);
+    localStorage.setItem('userEmail', data.user.username);
     localStorage.setItem('role', data.user.role);
     localStorage.setItem('allowedSem', data.user.allowedSem || '');
     window.location.href = '../dashboard.html';

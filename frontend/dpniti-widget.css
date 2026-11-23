@@ -194,10 +194,43 @@
 }
 
 .dpniti-msg.user {
+    position: relative;
     align-self: flex-end;
     background: #2C3424;
     color: #DADED8;
     border-bottom-right-radius: 3px;
+}
+
+.dpniti-user-actions {
+    position: absolute;
+    right: 7px;
+    bottom: -20px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    height: 20px;
+    padding: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: auto;
+    transition: opacity 0.15s ease;
+}
+
+.dpniti-msg.user:hover .dpniti-user-actions,
+.dpniti-msg.user:has(.dpniti-user-actions:hover) .dpniti-user-actions,
+.dpniti-msg.user:focus-within .dpniti-user-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.dpniti-msg.user .dpniti-msg-time {
+    margin-bottom: 0;
+}
+
+.dpniti-user-actions .dpniti-action-btn:hover,
+.dpniti-user-actions .dpniti-action-btn.selected {
+    color: #4C5B3E;
+    background: transparent;
 }
 
 .dpniti-msg.bot {
@@ -219,50 +252,243 @@
 }
 
 /* ── Input area ── */
+/* ── Input area — one pill bar, icons flat inside it ── */
 .dpniti-chat-input {
     display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    border-top: 1px solid rgba(44, 52, 36, 0.12);
-    background: #fff;
+    align-items: center;
+    gap: 2px;
+    margin: 8px 12px 10px;
+    padding: 4px 6px 4px 16px;
+    border: 1.5px solid #d4d0c8;
+    border-radius: 24px;
+    background: #f9f8f5;
     flex-shrink: 0;
+    transition: border-color 0.2s;
 }
+.dpniti-chat-input:focus-within { border-color: #4C5B3E; background: #fff; }
 
 .dpniti-chat-input input {
     flex: 1;
-    border: 1.5px solid #d4d0c8;
-    border-radius: 20px;
-    padding: 9px 14px;
+    border: none;
+    background: transparent;
+    padding: 9px 4px;
     font-size: 0.9rem;
     outline: none;
-    background: #f9f8f5;
     color: #2C3424;
-    transition: border-color 0.2s;
 }
 
-.dpniti-chat-input input:focus { border-color: #4C5B3E; background: #fff; }
-
-.dpniti-chat-input button {
+.dpniti-mic-btn {
     border: none;
-    background: #4C5B3E;
-    color: #DADED8;
-    width: 40px;
-    height: 40px;
+    background: transparent;
+    color: #9a9a9a;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    font-size: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: transform 0.15s;
+    transition: background 0.15s, color 0.15s;
 }
+.dpniti-mic-btn:hover { background: rgba(0,0,0,0.05); color: #666; }
 
-.dpniti-chat-input button:hover { transform: scale(1.05); }
+.dpniti-mic-btn.recording {
+    color: #d9534f;
+    animation: dpniti-pulse 1.2s infinite;
+}.dpniti-mic-btn {
+    border: none;
+    background: transparent;
+    color: #9a9a9a;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.dpniti-mic-btn:hover { background: rgba(0,0,0,0.05); color: #666; }
+
+.dpniti-mic-btn.recording {
+    color: #d9534f;
+    animation: dpniti-pulse 1.2s infinite;
+}
+.dpniti-send-btn {
+    border: none;
+    background: transparent;
+    color: #4C5B3E;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 19px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+.dpniti-mic-btn:hover,
+.dpniti-send-btn:hover { background: rgba(76, 91, 62, 0.1); }
 
 .dpniti-send-btn span {
     display: inline-block;
     transform: translateX(1px);
+}
+
+.dpniti-send-btn.generating {
+    color: #d9534f;
+}
+
+.dpniti-send-btn.generating:hover {
+    background: rgba(217, 83, 79, 0.1);
+}
+
+.dpniti-mic-btn.recording {
+    color: #d9534f;
+    animation: dpniti-pulse 1.2s infinite;
+}
+@keyframes dpniti-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(217,83,79,0.35); }
+    70%  { box-shadow: 0 0 0 8px rgba(217,83,79,0); }
+    100% { box-shadow: 0 0 0 0 rgba(217,83,79,0); }
+}
+
+.dpniti-voice-msg {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+}
+.dpniti-voice-msg .dpniti-msg-time {
+    width: 100%;
+    order: 10;
+}
+
+.dpniti-play-btn {
+    border: none;
+    background: #4C5B3E;
+    color: #DADED8;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.dpniti-msg.bot .dpniti-play-btn { background: #78b64a; }
+
+.dpniti-waveform {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 20px;
+    flex: 1;
+    min-width: 60px;
+}
+.dpniti-waveform span {
+    width: 2px;
+    background: currentColor;
+    opacity: 0.6;
+    border-radius: 2px;
+}
+
+.dpniti-msg-transcript {
+    width: 100%;
+    margin-top: 4px;
+    font-size: 0.78rem;
+    opacity: 0.75;
+    font-style: italic;
+}
+
+.dpniti-response-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.dpniti-action-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #7f827b;
+    font-size: 14px;
+    line-height: 1;
+    width: 22px;
+    height: 20px;
+    padding: 0;
+    border-radius: 4px;
+}
+
+.dpniti-action-btn:hover,
+.dpniti-action-btn.selected {
+    color: #4C5B3E;
+    background: rgba(76, 91, 62, 0.1);
+}
+
+.dpniti-action-btn svg {
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+}
+
+.dpniti-rating-wrap {
+    position: relative;
+}
+
+.dpniti-rating-menu {
+    display: none;
+    position: absolute;
+    left: -8px;
+    bottom: 27px;
+    z-index: 5;
+    min-width: 158px;
+    padding: 8px 0;
+    border: 1px solid #dedede;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 3px 12px rgba(44, 52, 36, 0.14);
+}
+
+.dpniti-rating-menu.open {
+    display: block;
+}
+
+.dpniti-rating-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    color: #2C3424;
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dpniti-rating-option:hover {
+    background: #f2f1ed;
+}
+
+.dpniti-rating-option svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
 }
 
 /* ── Mobile ── */
