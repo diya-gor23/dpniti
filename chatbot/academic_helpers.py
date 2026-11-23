@@ -11,7 +11,7 @@ DEBUG              = True
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("GEMINI_API_KEY", "")
 LOCAL_LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 OPENROUTER_MODELS: List[str] = [
-    "gemma-4-26b-a4b-it",
+    "gemini-3.5-flash-lite",
 ]
 OPENROUTER_MODEL   = OPENROUTER_MODELS[0]
 
