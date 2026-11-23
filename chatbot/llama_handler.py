@@ -52,7 +52,7 @@ def _looks_like_bad_answer(text: str) -> bool:
 # MCP server subprocess: `python mcp_tools.py`, same interpreter as this process.
 _MCP_SERVER_PARAMS = StdioServerParameters(
     command=sys.executable,
-    args=["mcp_tools.py"],
+    args=[os.path.join(os.path.dirname(os.path.abspath(__file__)), "mcp_tools.py")],
     env=dict(os.environ),
 )
 
@@ -218,18 +218,16 @@ class LlamaHandler:
                 })
                 return result
 
-            messages.append({
-                "role": "assistant",
-                "content": msg.content or "",
-                "tool_calls": [
-                    {
-                        "id": tc.id,
-                        "type": "function",
-                        "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                    }
-                    for tc in msg.tool_calls
-                ],
-            })
+            # Preserve Gemini's provider metadata on tool calls, particularly
+            # extra_content.google.thought_signature, for the next API request.
+            assistant_message = msg.model_dump(exclude_none=True)
+            messages.append(assistant_message)
+            if DEBUG:
+                print(
+                    "[LlamaHandler] Gemini requested tools: "
+                    + ", ".join(tc.function.name for tc in msg.tool_calls),
+                    flush=True,
+                )
             for call in msg.tool_calls:
                 try:
                     args = json.loads(call.function.arguments or "{}")
