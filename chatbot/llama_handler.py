@@ -1,5 +1,4 @@
 from __future__ import annotations
-import asyncio
 import json
 import re
 import sys
@@ -79,60 +78,7 @@ def _history_to_messages(
 
 
 class LlamaHandler:
-    def __init__(self) -> None:
-        self._session = None
-        self._tools_cache = None
-        self._lock = asyncio.Lock()
-        # Keep references to the raw stdio context managers so we can
-        # tear them down cleanly on close()/error, instead of only ever
-        # holding the ClientSession that wraps them.
-        self._stdio_ctx = None
-        self._session_ctx = None
-
-    # ── Persistent MCP session management ──
-    async def _get_session(self):
-        """Reuse the MCP session to avoid per-call startup and initialization."""
-        async with self._lock:
-            if self._session is None:
-                self._stdio_ctx = stdio_client(_MCP_SERVER_PARAMS)
-                read, write = await self._stdio_ctx.__aenter__()
-
-                self._session_ctx = ClientSession(read, write)
-                session = await self._session_ctx.__aenter__()
-                await session.initialize()
-
-                tools_resp = await session.list_tools()
-                self._tools_cache = [_tool_to_openai_schema(t) for t in tools_resp.tools]
-                self._session = session
-        return self._session, self._tools_cache
-
-    async def _reset_session(self) -> None:
-        """Clear the cached session after errors to avoid reusing a dead connection."""
-        async with self._lock:
-            self._session = None
-            self._tools_cache = None
-            self._stdio_ctx = None
-            self._session_ctx = None
-
-    async def close(self) -> None:
-        """Cleanly close the MCP subprocess during app shutdown."""
-        async with self._lock:
-            if self._session_ctx is not None:
-                try:
-                    await self._session_ctx.__aexit__(None, None, None)
-                except Exception:
-                    pass
-            if self._stdio_ctx is not None:
-                try:
-                    await self._stdio_ctx.__aexit__(None, None, None)
-                except Exception:
-                    pass
-            self._session = None
-            self._tools_cache = None
-            self._stdio_ctx = None
-            self._session_ctx = None
-
-    # ── MCP tool-calling path (replaces the old _build_context text-blob flow) ──
+    # ── MCP tool-calling path ──
     @trace_function("LlamaHandler.handle")
     async def handle(
         self,
@@ -154,10 +100,6 @@ class LlamaHandler:
         except Exception as e:
             if DEBUG:
                 print(f"[LlamaHandler] MCP tool-calling failed: {e}")
-            # The session may be in a bad state (broken pipe, dead
-            # subprocess, etc.) — drop it so the next call reconnects
-            # instead of repeatedly failing against a dead session.
-            await self._reset_session()
             return None
 
     async def _handle_with_tools(
@@ -170,10 +112,38 @@ class LlamaHandler:
         allowed_sem: Optional[int] = None,
         user_name: Optional[str] = None,
     ) -> Optional[str]:
+        async with stdio_client(_MCP_SERVER_PARAMS) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                tools_resp = await session.list_tools()
+                openai_tools = [
+                    _tool_to_openai_schema(tool) for tool in tools_resp.tools
+                ]
+                return await self._run_tool_loop(
+                    session=session,
+                    openai_tools=openai_tools,
+                    question=question,
+                    history=history,
+                    trace_id=trace_id,
+                    max_tool_rounds=max_tool_rounds,
+                    role=role,
+                    allowed_sem=allowed_sem,
+                    user_name=user_name,
+                )
+
+    async def _run_tool_loop(
+        self,
+        session: ClientSession,
+        openai_tools: List[Dict[str, Any]],
+        question: str,
+        history: List[Dict[str, str]],
+        trace_id: Optional[str],
+        max_tool_rounds: int,
+        role: str,
+        allowed_sem: Optional[int],
+        user_name: Optional[str],
+    ) -> Optional[str]:
         _span = tracker.span_llm(trace_id, question, 0, OPENROUTER_MODEL)
-
-        session, openai_tools = await self._get_session()
-
         messages = _history_to_messages(history) + [
             {"role": "user", "content": question}
         ]

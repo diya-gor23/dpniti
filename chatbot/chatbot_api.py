@@ -346,13 +346,6 @@ async def transcribe(
     return TranscribeResponse(text=resp.text.strip())
 
 
-@app.on_event("shutdown")
-async def _shutdown_llama_handler():
-    """Close the persistent MCP subprocess/session cleanly when the API
-    process shuts down, instead of leaving mcp_tools.py orphaned."""
-    await llama_handler.close()
-
-
 if __name__ == "__main__":
     import uvicorn
     print(f"[OK] LLM {'ON' if use_llm else 'OFF - mapping only'}")
