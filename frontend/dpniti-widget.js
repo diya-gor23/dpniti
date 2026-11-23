@@ -1,6 +1,6 @@
 (function () {
     // Use CONFIG.API_URL from config.js, or fallback to Python service
-    const PYTHON_API_URL = typeof CONFIG !== 'undefined' ? (CONFIG.PYTHON_API_URL || 'http://localhost:5001') : 'http://localhost:5001';
+    const PYTHON_API_URL = typeof CONFIG !== 'undefined' ? CONFIG.PYTHON_API_URL : 'http://localhost:5001';
     const SESSION_ID = 'dpniti_' + Math.random().toString(36).slice(2);
     const CHAT_STORAGE_KEY = 'dpniti_chat_messages';
     let conversationVersion = 0;
