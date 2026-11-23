@@ -8,12 +8,20 @@ load_dotenv()
 
 from langfuse_integration import tracker, trace_function
 DEBUG              = True
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or os.getenv("GEMINI_API_KEY", "")
-LOCAL_LLM_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+# Google Gemini API configuration
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+OPENROUTER_API_KEY = GEMINI_API_KEY
+
+LOCAL_LLM_BASE_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/openai/"
+)
+
 OPENROUTER_MODELS: List[str] = [
-    "gemini-3.5-flash-lite",
+    "gemini-2.5-flash-lite"
 ]
-OPENROUTER_MODEL   = OPENROUTER_MODELS[0]
+
+OPENROUTER_MODEL = OPENROUTER_MODELS[0]
 
 
 QUERY_STOPWORDS: frozenset = frozenset({
