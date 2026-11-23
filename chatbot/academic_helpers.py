@@ -18,7 +18,7 @@ LOCAL_LLM_BASE_URL = (
 )
 
 OPENROUTER_MODELS: List[str] = [
-    "gemini-2.5-flash-lite"
+    "gemini-3.5-flash-lite"
 ]
 
 OPENROUTER_MODEL = OPENROUTER_MODELS[0]

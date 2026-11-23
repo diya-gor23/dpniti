@@ -3,6 +3,7 @@ import json
 import re
 import os
 import sys
+import traceback
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
@@ -103,7 +104,8 @@ class LlamaHandler:
             )
         except Exception as e:
             if DEBUG:
-                print(f"[LlamaHandler] MCP tool-calling failed: {e}")
+                print(f"[LlamaHandler] MCP tool-calling failed: {e!r}", flush=True)
+                traceback.print_exc()
             return None
 
     async def _handle_with_tools(
@@ -123,6 +125,8 @@ class LlamaHandler:
                 openai_tools = [
                     _tool_to_openai_schema(tool) for tool in tools_resp.tools
                 ]
+                if DEBUG:
+                    print(f"[LlamaHandler] Loaded MCP tools: {[t['function']['name'] for t in openai_tools]}", flush=True)
                 return await self._run_tool_loop(
                     session=session,
                     openai_tools=openai_tools,
@@ -148,9 +152,9 @@ class LlamaHandler:
         user_name: Optional[str],
     ) -> Optional[str]:
         _span = tracker.span_llm(trace_id, question, 0, OPENROUTER_MODEL)
-        messages = _history_to_messages(history) + [
-            {"role": "user", "content": question}
-        ]
+        messages = _history_to_messages(history)
+        if not messages or messages[-1].get("role") != "user" or messages[-1].get("content") != question:
+            messages.append({"role": "user", "content": question})
         identity_message = []
         if user_name and user_name.strip():
             identity_message = [{
@@ -174,7 +178,6 @@ class LlamaHandler:
                         model=model,
                         messages=[{"role": "system", "content": SYSTEM_PROMPT}] + identity_message + messages,
                         tools=openai_tools,
-                        temperature=0.2,
                         # 1200 was cutting off any answer that had to list many
                         # records (a division roster, "all faculty", etc.) —
                         # the model would run out of tokens mid-list and the
@@ -183,10 +186,6 @@ class LlamaHandler:
                         # set uncapped, so the completion budget has to be
                         # big enough to actually narrate all of it back.
                         max_tokens=8192,
-                        extra_headers={
-                            "HTTP-Referer": "https://dpniti.local",
-                            "X-Title": "DPNITI Campus Assist",
-                        },
                     )
                     msg = resp.choices[0].message
                     usage = getattr(resp, "usage", None)
@@ -196,7 +195,10 @@ class LlamaHandler:
                     break
                 except Exception as e:
                     if DEBUG:
-                        print(f"[LlamaHandler] '{model}' failed: {e}")
+                        print(f"[LlamaHandler] '{model}' failed: {e!r}", flush=True)
+                        if hasattr(e, "body"):
+                            print(f"[LlamaHandler] API error body: {e.body}", flush=True)
+                        traceback.print_exc()
                     msg = None
                     continue
             if msg is None:
@@ -233,12 +235,23 @@ class LlamaHandler:
                     args = json.loads(call.function.arguments or "{}")
                 except json.JSONDecodeError:
                     args = {}
-                args["access_role"] = role
-                args["allowed_sem"] = allowed_sem
+                # Only pass access-control fields declared by the MCP tool.
+                tool_schema = next(
+                    (t["function"]["parameters"] for t in openai_tools
+                     if t["function"]["name"] == call.function.name), {}
+                )
+                declared = tool_schema.get("properties", {})
+                if "access_role" in declared:
+                    args["access_role"] = role
+                if "allowed_sem" in declared:
+                    args["allowed_sem"] = allowed_sem
                 try:
                     result = await session.call_tool(call.function.name, args)
                     text = "".join(getattr(b, "text", "") for b in result.content)
                 except Exception as e:
+                    if DEBUG:
+                        print(f"[LlamaHandler] MCP tool {call.function.name} failed: {e!r}", flush=True)
+                        traceback.print_exc()
                     text = json.dumps({"error": str(e)})
                 messages.append({
                     "role": "tool",
