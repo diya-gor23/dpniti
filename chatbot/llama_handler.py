@@ -1,6 +1,7 @@
 from __future__ import annotations
 import json
 import re
+import os
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -48,8 +49,11 @@ def _looks_like_bad_answer(text: str) -> bool:
     return False
 
 # MCP server subprocess: `python mcp_tools.py`, same interpreter as this process.
-_MCP_SERVER_PARAMS = StdioServerParameters(command=sys.executable, args=["mcp_tools.py"])
-
+_MCP_SERVER_PARAMS = StdioServerParameters(
+    command=sys.executable,
+    args=["mcp_tools.py"],
+    env=dict(os.environ),
+)
 
 def _tool_to_openai_schema(tool: Any) -> Dict[str, Any]:
     # mcp SDK < 2.0 uses `inputSchema`; >= 2.0 renamed it to `input_schema`.
